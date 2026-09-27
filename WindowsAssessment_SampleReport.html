@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:;">
+<title>Security Assessment - FIN-WS-0142</title>
+<style>
+:root{
+  --bg:#f5f6f8;--surface:#fff;--surface-2:#f0f2f5;--border:#dfe3e8;--text:#1b1f24;--muted:#5b6571;--accent:#0f6cbd;
+  --pass:#107c41;--fail:#c42b1c;--warn:#b86e00;--manual:#4f5bd5;--info:#5b6571;--na:#8a939e;--error:#8e24aa;
+  --crit:#7d0b12;--high:#c42b1c;--med:#d06b00;--low:#a88400;--inf:#6b7280;
+  --pass-bg:#e7f4ec;--fail-bg:#fbe9e7;--warn-bg:#fdf1dc;--manual-bg:#eceefd;--na-bg:#eef0f2;
+  --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+  --mono:Consolas,"Cascadia Mono","SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1216;--surface:#171b21;--surface-2:#1e232b;--border:#2b323c;--text:#e6e9ee;--muted:#9aa4b1;--accent:#4aa3ff;
+  --pass:#3ccf7e;--fail:#ff6b5e;--warn:#f0a935;--manual:#8f99ff;--info:#9aa4b1;--na:#6b7480;--error:#d17be0;
+  --crit:#ff4d5e;--high:#ff6b5e;--med:#f0a935;--low:#d9c24a;--inf:#9aa4b1;
+  --pass-bg:#12301f;--fail-bg:#3a1714;--warn-bg:#3a2a0c;--manual-bg:#1f2350;--na-bg:#20252c;--shadow:none;}}
+:root[data-theme="dark"]{
+  --bg:#0f1216;--surface:#171b21;--surface-2:#1e232b;--border:#2b323c;--text:#e6e9ee;--muted:#9aa4b1;--accent:#4aa3ff;
+  --pass:#3ccf7e;--fail:#ff6b5e;--warn:#f0a935;--manual:#8f99ff;--info:#9aa4b1;--na:#6b7480;--error:#d17be0;
+  --crit:#ff4d5e;--high:#ff6b5e;--med:#f0a935;--low:#d9c24a;--inf:#9aa4b1;
+  --pass-bg:#12301f;--fail-bg:#3a1714;--warn-bg:#3a2a0c;--manual-bg:#1f2350;--na-bg:#20252c;--shadow:none;}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:64px}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 "Segoe UI",system-ui,-apple-system,Roboto,"Helvetica Neue",Arial,sans-serif}
+a{color:var(--accent)}
+header.top{position:sticky;top:0;z-index:20;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;padding:10px 24px;flex-wrap:wrap}
+.brand{font-weight:600;font-size:15px;white-space:nowrap}
+.brand small{color:var(--muted);font-weight:400;margin-left:8px}
+nav.sections{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+nav.sections a{color:var(--muted);text-decoration:none;padding:6px 10px;border-radius:6px;font-size:13px}
+nav.sections a:hover{background:var(--surface-2);color:var(--text)}
+.tools{display:flex;gap:6px}
+button{font:inherit;color:inherit;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;padding:6px 10px;cursor:pointer}
+button:hover{border-color:var(--accent)}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,tr:focus-visible,.cell:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+main{max-width:1400px;margin:0 auto;padding:20px 24px 60px;overflow-wrap:anywhere}
+section{margin-bottom:28px}
+h2{font-size:18px;margin:0 0 12px;font-weight:600}
+h3{font-size:14px;margin:0 0 8px;font-weight:600}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:16px}
+.grid>*{min-width:0}
+.hero{grid-template-columns:260px 1fr}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(150px,100%),1fr));gap:12px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.kpi .v{font-size:26px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.kpi .s{font-size:12px;color:var(--muted);margin-top:2px}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 16px}
+.chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:2px 10px;font-size:12px;color:var(--muted)}
+.chip b{color:var(--text);font-weight:600}
+.score-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.score-wrap .grade{font-size:13px;color:var(--muted)}
+.summary p{margin:0 0 8px}
+.summary p:first-child{font-size:15px}
+.charts{grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));align-items:start}
+.bars .row{display:grid;grid-template-columns:minmax(90px,1.1fr) 3fr 44px;gap:8px;align-items:center;margin:6px 0;font-size:13px}
+.bars .row>:first-child{overflow-wrap:anywhere}
+.bars a{color:var(--text);text-decoration:none}.bars a:hover{color:var(--accent);text-decoration:underline}
+.bars .track{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden;display:flex}
+.bars .seg{height:100%}
+.bars .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.pill{display:inline-block;border-radius:4px;padding:1px 7px;font-size:12px;font-weight:600;white-space:nowrap}
+.st-Pass{color:var(--pass);background:var(--pass-bg)}.st-Fail{color:var(--fail);background:var(--fail-bg)}.st-Warning{color:var(--warn);background:var(--warn-bg)}
+.st-Manual{color:var(--manual);background:var(--manual-bg)}.st-Info,.st-NotApplicable{color:var(--muted);background:var(--na-bg)}.st-Error{color:var(--error);background:var(--na-bg)}
+.sv{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}
+.sv::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--c)}
+.sv-Critical{--c:var(--crit)}.sv-High{--c:var(--high)}.sv-Medium{--c:var(--med)}.sv-Low{--c:var(--low)}.sv-Informational{--c:var(--inf)}
+.tchip{font-family:var(--mono);font-size:11px;border:1px solid var(--border);border-radius:4px;padding:0 5px;margin:1px 2px 1px 0;display:inline-block;color:var(--muted);text-decoration:none;background:var(--surface)}
+a.tchip:hover{border-color:var(--accent);color:var(--accent)}
+.paths{grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))}
+.path{border-left:4px solid var(--c)}
+.path p{margin:6px 0 8px;color:var(--text)}
+.path .checks{font-size:12px;color:var(--muted)}
+.matrix-wrap{overflow-x:auto;padding-bottom:6px}
+.matrix{display:flex;gap:8px;min-width:min-content}
+.tactic{width:190px;flex:0 0 190px}
+.tactic .th{font-size:12px;font-weight:600;padding:6px 8px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);margin-bottom:6px}
+.tactic .th small{display:block;color:var(--muted);font-weight:400}
+.cell{display:block;width:100%;text-align:left;border:1px solid var(--border);border-left:5px solid var(--c);background:var(--surface);border-radius:6px;padding:6px 8px;margin-bottom:6px;cursor:pointer;font-size:12px;line-height:1.3}
+.cell .tid{font-family:var(--mono);font-size:11px;color:var(--muted);display:flex;justify-content:space-between}
+.cell.sel{outline:2px solid var(--accent)}
+.c-crit{--c:var(--crit)}.c-high{--c:var(--high)}.c-med{--c:var(--med)}.c-low{--c:var(--low)}.c-warn{--c:var(--warn)}.c-manual{--c:var(--manual)}.c-pass{--c:var(--pass)}.c-na{--c:var(--na)}
+.detail-panel{margin-top:12px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.toolbar input[type=search]{flex:1;min-width:200px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit}
+.toolbar select{padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font:inherit;max-width:220px}
+.toggle{border-radius:999px;padding:3px 10px;font-size:12px}
+.toggle[aria-pressed="false"]{opacity:.45}
+.count{color:var(--muted);font-size:12px;margin-left:auto}
+.active-filter{background:var(--manual-bg);color:var(--manual);border-color:transparent}
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--surface-2);position:sticky;top:0;cursor:pointer;user-select:none;white-space:nowrap}
+th[aria-sort="ascending"]::after{content:" \25B2"}th[aria-sort="descending"]::after{content:" \25BC"}
+tr.row{cursor:pointer}
+tr.row:hover td{background:var(--surface-2)}
+td .cid{font-family:var(--mono);font-size:11px;color:var(--muted)}
+td{overflow-wrap:anywhere}
+tr.det td{background:var(--surface-2);padding:12px 16px}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:6px 12px;font-size:13px}
+.kv .k{color:var(--muted)}
+pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:12px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px}
+.plan{grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));align-items:start}
+.plan ol{margin:0;padding-left:20px}
+.plan li{margin-bottom:10px}
+.plan li .r{color:var(--muted);font-size:12.5px}
+.muted{color:var(--muted)}
+footer{color:var(--muted);font-size:12px;border-top:1px solid var(--border);padding-top:12px}
+.empty{color:var(--muted);font-style:italic;padding:8px 0}
+@media (max-width:820px){.hero{grid-template-columns:1fr}header.top{position:static;padding:8px 16px;gap:8px}nav.sections{order:3;flex:1 1 100%;flex-wrap:nowrap;overflow-x:auto}nav.sections a{white-space:nowrap}main{padding:16px}.kv{grid-template-columns:1fr}}
+@media print{header.top,.toolbar,.tools,#matrix-detail{display:none!important}body{background:#fff}main{max-width:none;padding:0}.card,.kpi,.table-wrap{box-shadow:none;break-inside:avoid}section{break-inside:avoid-page}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">Windows Security Assessment<small id="h-host"></small></div>
+  <nav class="sections" aria-label="Report sections">
+    <a href="#overview">Overview</a><a href="#paths">Attack paths</a><a href="#attack">ATT&amp;CK matrix</a>
+    <a href="#findings">Findings</a><a href="#plan">Remediation plan</a><a href="#mitigations">Mitigations</a><a href="#run">Run details</a>
+  </nav>
+  <div class="tools">
+    <button type="button" id="btn-theme" aria-label="Toggle dark mode">Theme</button>
+    <button type="button" id="btn-print">Print</button>
+  </div>
+</header>
+<main>
+  <section id="overview">
+    <div class="meta" id="meta-chips"></div>
+    <div class="grid hero">
+      <div class="card score-wrap" id="score-card"></div>
+      <div class="grid" style="gap:12px">
+        <div class="kpis" id="kpis"></div>
+        <div class="card summary" id="summary"><h3>Executive summary</h3></div>
+      </div>
+    </div>
+    <div class="grid charts" style="margin-top:16px">
+      <div class="card"><h3>Result distribution</h3><div id="donut"></div></div>
+      <div class="card"><h3>Failed controls by severity</h3><div class="bars" id="sev-bars"></div></div>
+      <div class="card"><h3>Results by category</h3><div class="bars" id="cat-bars"></div><div class="legend" id="cat-legend"></div></div>
+    </div>
+  </section>
+
+  <section id="paths">
+    <h2>Attack paths</h2>
+    <p class="muted" style="margin-top:-6px">Weaknesses that chain together into a realistic attack, generated from the failing and warning controls.</p>
+    <div class="grid paths" id="path-cards"></div>
+  </section>
+
+  <section id="attack">
+    <h2>MITRE ATT&amp;CK coverage</h2>
+    <p class="muted" style="margin-top:-6px" id="attack-caption"></p>
+    <div class="card">
+      <div class="matrix-wrap"><div class="matrix" id="matrix"></div></div>
+      <div class="legend" id="matrix-legend"></div>
+    </div>
+    <div class="card detail-panel" id="matrix-detail" hidden></div>
+  </section>
+
+  <section id="findings">
+    <h2>Findings</h2>
+    <div class="toolbar" role="search">
+      <input type="search" id="q" placeholder="Search controls, findings, evidence, technique IDs..." aria-label="Search findings">
+      <span id="status-toggles"></span>
+      <select id="f-sev" aria-label="Severity"><option value="">All severities</option></select>
+      <select id="f-cat" aria-label="Category"><option value="">All categories</option></select>
+      <select id="f-tac" aria-label="Tactic"><option value="">All tactics</option></select>
+      <button type="button" id="f-tech" hidden class="active-filter"></button>
+      <button type="button" id="btn-reset">Reset</button>
+      <button type="button" id="btn-csv">Export CSV</button>
+      <span class="count" id="f-count"></span>
+    </div>
+    <div class="table-wrap">
+      <table id="tbl">
+        <thead><tr>
+          <th data-k="severity" scope="col">Severity</th><th data-k="status" scope="col">Status</th><th data-k="name" scope="col">Control</th>
+          <th data-k="category" scope="col">Category</th><th data-k="techniques" scope="col">ATT&amp;CK</th><th data-k="priority" scope="col">Priority</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="plan">
+    <h2>Remediation plan</h2>
+    <div class="grid plan" id="plan-cols"></div>
+  </section>
+
+  <section id="mitigations">
+    <h2>ATT&amp;CK mitigation coverage</h2>
+    <div class="card"><div class="bars" id="mit-bars"></div><div class="legend" id="mit-legend"></div></div>
+  </section>
+
+  <section id="run">
+    <h2>Run details</h2>
+    <div class="grid charts">
+      <div class="card"><h3>Execution</h3><div class="kv" id="run-kv"></div></div>
+      <div class="card"><h3>Slowest steps</h3><div class="bars" id="timings"></div></div>
+      <div class="card"><h3>Execution errors</h3><div id="errors"></div></div>
+    </div>
+  </section>
+  <footer id="footer"></footer>
+</main>
+<script id="wa-data" type="application/json">{"meta":{"host":"FIN-WS-0142","domain":"corp.contoso.com","os":"Microsoft Windows 11 Enterprise","osVersion":"10.0.22631","role":"Workstation","isAdmin":true,"user":"CORP\\adm-assessor","psVersion":"7.4.6","scriptVersion":"2.0.0","attackVersion":"Enterprise ATT\u0026CK v19.2","attackModified":"2026-08-05","started":"2026-09-27T13:05:07","generated":"2026-09-27T13:05:08","durationSec":1,"lastBoot":"2026-09-24T13:05:07","options":{"sensitiveSearch":false,"skipNetworkTests":false,"skipGpo":false},"score":50,"grade":"F","counts":{"Fail":32,"Error":0,"Warning":18,"Pass":22,"Manual":16,"Info":2,"NotApplicable":0},"failBySeverity":{"Informational":1,"High":5,"Medium":15,"Critical":1,"Low":10}},"summary":["FIN-WS-0142 (Workstation, Microsoft Windows 11 Enterprise) scored 50/100 (grade F) across 72 evaluated controls. 32 failed (1 critical, 5 high, 15 medium), 18 returned warnings and 16 need manual review.","Mapped to MITRE ATT\u0026CK (Enterprise ATT\u0026CK v19.2), the failing controls leave the host most exposed in: Credential Access (16 failing controls, 8 techniques), Collection (10 failing controls, 2 techniques), Defense Impairment (9 failing controls, 6 techniques).","7 attack path(s) were identified by chaining the weaknesses: Local privilege escalation; Credential theft from LSASS; Name-resolution poisoning and NTLM relay; Lateral movement; Initial access via malicious documents; Detection blind spots and defense impairment; Command and control / exfiltration egress.","Highest-impact fixes: Unquoted service paths [Critical]; PowerShell 2.0 engine [High]; LSA Protection (RunAsPPL) [High]."],"attackPaths":[{"title":"Local privilege escalation","severity":"Critical","narrative":"A standard user or low-privileged foothold can escalate to administrator/SYSTEM through: AlwaysInstallElevated, Unquoted service paths, UAC - Elevation prompt for administrators, WSUS transport security, Patch recency.","techniques":["T1218.007","T1574.009","T1548.002","T1068"],"checks":["machine_installWithElevation","vul_quotedPath","machine_UAC-AdminPrompt","machine_wsusUpdate","machine_lastPatch"]},{"title":"Credential theft from LSASS","severity":"High","narrative":"An attacker with local admin rights can dump credentials from LSASS memory (e.g., Mimikatz, nanodump) because LSA Protection (RunAsPPL), Credential Guard, ASR - Block credential stealing from LSASS are not in place. Harvested NTLM hashes and Kerberos tickets enable pass-the-hash and pass-the-ticket to other hosts.","techniques":["T1003.001","T1550.002"],"checks":["machine_LSA-ppl","machine_LSA-CG-wmi","machine_ASR-LSASS"]},{"title":"Name-resolution poisoning and NTLM relay","severity":"High","narrative":"An attacker on the same network segment can answer broadcast/multicast name queries (LLMNR, NetBIOS node type, NetBIOS over TCP/IP (per interface), mDNS responder, IPv6 DHCPv6 spoofing exposure (mitm6), WPAD (WinHTTP auto-proxy discovery)) and capture NTLM authentication. Because SMB server signing required, SMB client signing required are not enforced, the captured authentication can be relayed or cracked.","techniques":["T1557.001","T1557.003","T1110.002"],"checks":["domain_LLMNR","domain_NetBIOSNT","domain_NetBIOSoTCP","domain_mDNS","domain_mitm6","machine_WPADSvc","domain_SMBv2-srvSign","domain_SMBv2-clientSign"]},{"title":"Lateral movement","severity":"High","narrative":"Compromise of this host can spread laterally: RDP allowed users (Fail); Windows Firewall profiles (Fail). Shared local administrator passwords and unrestricted remote services are the most common enablers of domain-wide ransomware deployment.","techniques":["T1550.002","T1021.001","T1021.002","T1210"],"checks":["machine_RDP-Users","machine_FirewallProfiles"]},{"title":"Initial access via malicious documents","severity":"High","narrative":"Phishing attachments can execute code on this host: Office VBA macro notification settings, ASR - Office child process / injection rules, Excel automatic update of links (DDE), Outlook automatic update of links (DDE) leave macro/DDE execution paths open.","techniques":["T1566.001","T1204.002","T1559.002"],"checks":["machine_officeVBAWarnings","machine_ASR-Office","machine_excelDDE","machine_outlookDDE"]},{"title":"Detection blind spots and defense impairment","severity":"High","narrative":"Attacker activity is less likely to be detected or can be hidden: PowerShell module logging, Security event log maximum size, Microsoft Defender tamper protection, PowerShell 2.0 engine. This lengthens dwell time and weakens incident response.","techniques":["T1059.001","T1685","T1689"],"checks":["machine_PSModuleLog","machine_SecMaxLog","machine_DefenderTamper","machine_PSv2"]},{"title":"Command and control / exfiltration egress","severity":"Medium","narrative":"Malware on this host can reach the internet outside the controlled proxy path (Internet access - DNS, Internet access - Direct egress ports, WPAD (WinHTTP auto-proxy discovery), Proxy configuration scope), enabling command-and-control and data exfiltration.","techniques":["T1071.001","T1071.004","T1571","T1048"],"checks":["machine_na-dns","machine_na-browsing","machine_WPADSvc","machine_proxyConf"]}],"tactics":[{"key":"reconnaissance","name":"Reconnaissance","order":0,"id":"TA0043"},{"key":"resource-development","name":"Resource Development","order":1,"id":"TA0042"},{"key":"initial-access","name":"Initial Access","order":2,"id":"TA0001"},{"key":"execution","name":"Execution","order":3,"id":"TA0002"},{"key":"persistence","name":"Persistence","order":4,"id":"TA0003"},{"key":"privilege-escalation","name":"Privilege Escalation","order":5,"id":"TA0004"},{"key":"stealth","name":"Stealth","order":6,"id":"TA0005"},{"key":"defense-impairment","name":"Defense Impairment","order":7,"id":"TA0112"},{"key":"credential-access","name":"Credential Access","order":8,"id":"TA0006"},{"key":"discovery","name":"Discovery","order":9,"id":"TA0007"},{"key":"lateral-movement","name":"Lateral Movement","order":10,"id":"TA0008"},{"key":"collection","name":"Collection","order":11,"id":"TA0009"},{"key":"command-and-control","name":"Command and Control","order":12,"id":"TA0011"},{"key":"exfiltration","name":"Exfiltration","order":13,"id":"TA0010"},{"key":"impact","name":"Impact","order":14,"id":"TA0040"}],"techniques":{"T1003.001":{"tactics":["credential-access"],"name":"LSASS Memory"},"T1011":{"tactics":["exfiltration"],"name":"Exfiltration Over Other Network Medium"},"T1021":{"tactics":["lateral-movement"],"name":"Remote Services"},"T1021.001":{"tactics":["lateral-movement"],"name":"Remote Desktop Protocol"},"T1021.002":{"tactics":["lateral-movement"],"name":"SMB/Windows Admin Shares"},"T1027":{"tactics":["stealth"],"name":"Obfuscated Files or Information"},"T1033":{"tactics":["discovery"],"name":"System Owner/User Discovery"},"T1039":{"tactics":["collection"],"name":"Data from Network Shared Drive"},"T1041":{"tactics":["exfiltration"],"name":"Exfiltration Over C2 Channel"},"T1048":{"tactics":["exfiltration"],"name":"Exfiltration Over Alternative Protocol"},"T1049":{"tactics":["discovery"],"name":"System Network Connections Discovery"},"T1059.001":{"tactics":["execution"],"name":"PowerShell"},"T1059.003":{"tactics":["execution"],"name":"Windows Command Shell"},"T1059.005":{"tactics":["execution"],"name":"Visual Basic"},"T1068":{"tactics":["privilege-escalation"],"name":"Exploitation for Privilege Escalation"},"T1069.001":{"tactics":["discovery"],"name":"Local Groups"},"T1071.001":{"tactics":["command-and-control"],"name":"Web Protocols"},"T1071.004":{"tactics":["command-and-control"],"name":"DNS"},"T1078":{"tactics":["stealth","persistence","privilege-escalation","initial-access"],"name":"Valid Accounts"},"T1078.002":{"tactics":["stealth","persistence","privilege-escalation","initial-access"],"name":"Domain Accounts"},"T1078.003":{"tactics":["stealth","persistence","privilege-escalation","initial-access"],"name":"Local Accounts"},"T1087.001":{"tactics":["discovery"],"name":"Local Account"},"T1090":{"tactics":["command-and-control"],"name":"Proxy"},"T1098":{"tactics":["persistence","privilege-escalation"],"name":"Account Manipulation"},"T1110":{"tactics":["credential-access"],"name":"Brute Force"},"T1110.002":{"tactics":["credential-access"],"name":"Password Cracking"},"T1112":{"tactics":["defense-impairment","persistence"],"name":"Modify Registry"},"T1134.001":{"tactics":["stealth","privilege-escalation"],"name":"Token Impersonation/Theft"},"T1135":{"tactics":["discovery"],"name":"Network Share Discovery"},"T1137":{"tactics":["persistence"],"name":"Office Application Startup"},"T1187":{"tactics":["credential-access"],"name":"Forced Authentication"},"T1203":{"tactics":["execution"],"name":"Exploitation for Client Execution"},"T1204.002":{"tactics":["execution"],"name":"Malicious File"},"T1210":{"tactics":["lateral-movement"],"name":"Exploitation of Remote Services"},"T1218.007":{"tactics":["stealth"],"name":"Msiexec"},"T1219":{"tactics":["command-and-control"],"name":"Remote Access Tools"},"T1543.003":{"tactics":["persistence","privilege-escalation"],"name":"Windows Service"},"T1547.008":{"tactics":["persistence","privilege-escalation"],"name":"LSASS Driver"},"T1548":{"tactics":["privilege-escalation"],"name":"Abuse Elevation Control Mechanism"},"T1548.002":{"tactics":["privilege-escalation"],"name":"Bypass User Account Control"},"T1550.002":{"tactics":["lateral-movement"],"name":"Pass the Hash"},"T1552.001":{"tactics":["credential-access"],"name":"Credentials In Files"},"T1555.004":{"tactics":["credential-access"],"name":"Windows Credential Manager"},"T1557":{"tactics":["credential-access","collection"],"name":"Adversary-in-the-Middle"},"T1557.001":{"tactics":["credential-access","collection"],"name":"Name Resolution Poisoning and SMB Relay"},"T1557.003":{"tactics":["credential-access","collection"],"name":"DHCP Spoofing"},"T1558":{"tactics":["credential-access"],"name":"Steal or Forge Kerberos Tickets"},"T1558.003":{"tactics":["credential-access"],"name":"Kerberoasting"},"T1558.004":{"tactics":["credential-access"],"name":"AS-REP Roasting"},"T1559.002":{"tactics":["execution"],"name":"Dynamic Data Exchange"},"T1563.002":{"tactics":["lateral-movement"],"name":"RDP Hijacking"},"T1566.001":{"tactics":["initial-access"],"name":"Spearphishing Attachment"},"T1571":{"tactics":["command-and-control"],"name":"Non-Standard Port"},"T1574.009":{"tactics":["stealth","execution"],"name":"Path Interception by Unquoted Path"},"T1685":{"tactics":["defense-impairment"],"name":"Disable or Modify Tools"},"T1685.001":{"tactics":["defense-impairment"],"name":"Disable or Modify Windows Event Log"},"T1685.005":{"tactics":["defense-impairment"],"name":"Clear Windows Event Logs"},"T1686.003":{"tactics":["defense-impairment"],"name":"Windows Host Firewall"},"T1688":{"tactics":["defense-impairment"],"name":"Safe Mode Boot"},"T1689":{"tactics":["defense-impairment"],"name":"Downgrade Attack"}},"mitigations":{"M1031":"Network Intrusion Prevention","M1042":"Disable or Remove Feature or Program","M1018":"User Account Management","M1054":"Software Configuration","M1047":"Audit","M1041":"Encrypt Sensitive Information","M1027":"Password Policies","M1043":"Credential Access Protection","M1040":"Behavior Prevention on Endpoint","M1035":"Limit Access to Resource Over Network","M1038":"Execution Prevention","M1051":"Update Software","M1052":"User Account Control","M1049":"Antivirus/Antimalware","M1025":"Privileged Process Integrity","M1026":"Privileged Account Management","M1022":"Restrict File and Directory Permissions","M1029":"Remote Data Storage","M1028":"Operating System Configuration","M1037":"Filter Network Traffic"},"findings":[{"id":"machine_proxyConf","name":"Proxy configuration scope","category":"Machine Hardening - Networking","scope":"","status":"Fail","severity":"Low","finding":"Proxy settings are per-user - each user (or malware in user context) controls its own proxy.","evidence":"ProxySettingsPerUser=","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"Set 'Make proxy settings per-machine (rather than per-user)' = Enabled (ProxySettingsPerUser = 0).","reference":"","coverage":"Prevent","priority":2.6,"techniques":["T1090","T1071.001"],"mitigations":["M1037"]},{"id":"machine_proxySet","name":"User proxy settings","category":"Machine Hardening - Networking","scope":"","status":"Info","severity":"Informational","finding":"A PAC (AutoConfigURL) is configured for the user.","evidence":"ProxyEnable=0; ProxyServer=; AutoConfigURL=http://pac.corp.contoso.com/proxy.pac; ProxyOverride=","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"","reference":"","coverage":"","priority":0.0,"techniques":[],"mitigations":[]},{"id":"machine_autoIsoProxyDiscovery","name":"Network Isolation automatic proxy discovery","category":"Machine Hardening - Networking","scope":"","status":"Fail","severity":"Low","finding":"Network Isolation automatic proxy discovery is enabled.","evidence":"DProxiesAuthoritive=","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"GPO: Network \u003e Network Isolation \u003e 'Proxy definitions are authoritative' = Enabled (DProxiesAuthoritive = 1).","reference":"","coverage":"Prevent","priority":2.3,"techniques":["T1557"],"mitigations":["M1042"]},{"id":"machine_accConfProxy","name":"Users can change proxy settings","category":"Machine Hardening - Networking","scope":"","status":"Pass","severity":"Low","finding":"Users cannot change proxy settings (computer policy).","evidence":"HKLM Proxy=1","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"GPO: Internet Explorer \u003e 'Prevent changing proxy settings' = Enabled (computer scope) and enforce egress at the perimeter.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1090"],"mitigations":["M1037"]},{"id":"machine_AutoProxyResultCache","name":"Auto-proxy script result caching","category":"Machine Hardening - Networking","scope":"","status":"Fail","severity":"Low","finding":"Auto-proxy script results are cached (a poisoned WPAD answer persists).","evidence":"EnableAutoProxyResultCache=","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"GPO: 'Disable caching of Auto-Proxy scripts' = Enabled (EnableAutoProxyResultCache = 0) so a poisoned PAC result is not reused.","reference":"","coverage":"Prevent","priority":2.3,"techniques":["T1557"],"mitigations":["M1042"]},{"id":"machine_WPADSvc","name":"WPAD (WinHTTP auto-proxy discovery)","category":"Machine Hardening - Networking","scope":"","status":"Fail","severity":"Medium","finding":"WPAD auto-discovery is active - a rogue \"wpad\" host can proxy traffic and harvest credentials.","evidence":"DisableWpad=; WinHttpAutoProxySvc StartMode=Manual State=Running","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"Disable WPAD via HKLM\\SYSTEM\\CurrentControlSet\\Services\\WinHttp\\DisableWpad = 1 (supported), publish a 'wpad' DNS record you control and keep 'wpad' in the DNS global query block list.","reference":"","coverage":"Prevent","priority":5.2,"techniques":["T1557","T1187"],"mitigations":["M1042"]},{"id":"machine_na-dns","name":"Internet access - DNS","category":"Machine Hardening - Networking","scope":"","status":"Warning","severity":"Medium","finding":"Public DNS (8.8.8.8) is directly reachable - DNS tunnelling/exfiltration channel available.","evidence":"Resolved www.microsoft.com via 8.8.8.8","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"Block outbound TCP/UDP 53 to the internet except from designated DNS forwarders; force resolution through internal DNS with query logging.","reference":"","coverage":"Prevent","priority":2.6,"techniques":["T1071.004","T1048"],"mitigations":["M1037","M1031"]},{"id":"machine_na-browsing","name":"Internet access - Direct egress ports","category":"Machine Hardening - Networking","scope":"","status":"Warning","severity":"Medium","finding":"Direct outbound HTTP/HTTPS is allowed without the proxy.","evidence":"80:Open; 443:Open; 666:Blocked; 8080:Blocked","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"Default-deny outbound at the perimeter; allow web only through an authenticated proxy. Servers should have no direct internet egress.","reference":"","coverage":"Prevent","priority":2.9,"techniques":["T1071.001","T1571","T1041"],"mitigations":["M1037","M1031"]},{"id":"machine_autoUpdate","name":"Windows automatic updates","category":"Machine Hardening - Patching","scope":"","status":"Pass","severity":"Medium","finding":"Automatic updates are not disabled.","evidence":"NoAutoUpdate=0","comments":"","relatedFile":"Windows-Updates_FIN-WS-0142.txt","remediation":"Do not set NoAutoUpdate = 1. Manage updates via WSUS/Intune/ConfigMgr with enforced deadlines.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1068","T1210","T1203"],"mitigations":["M1051"]},{"id":"machine_autoUpdateSchedule","name":"Windows automatic update behaviour","category":"Machine Hardening - Patching","scope":"","status":"Pass","severity":"Low","finding":"Updates download and install on a schedule (every day at 3:00).","evidence":"AUOptions=4; ScheduledInstallDay=0; ScheduledInstallTime=3","comments":"","relatedFile":"Windows-Updates_FIN-WS-0142.txt","remediation":"AUOptions = 4 (auto download and schedule install) or an equivalent managed deadline; avoid 2 (notify) and 5 (local admin chooses).","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1068","T1210","T1203"],"mitigations":["M1051"]},{"id":"machine_wsusUpdate","name":"WSUS transport security","category":"Machine Hardening - Patching","scope":"","status":"Fail","severity":"Medium","finding":"WSUS is reached over HTTP - update metadata can be tampered with (WSUSpect / local privilege escalation).","evidence":"WUServer=http://wsus01.corp.contoso.com:8530","comments":"","relatedFile":"Windows-Updates_FIN-WS-0142.txt","remediation":"Publish WSUS over HTTPS (port 8531) and update WUServer/WUStatusServer to https:// URLs.","reference":"https://learn.microsoft.com/windows-server/administration/windows-server-update-services/deploy/2-configure-wsus","coverage":"Prevent","priority":5.2,"techniques":["T1557","T1068"],"mitigations":["M1041"]},{"id":"machine_wsusUpdateAddress","name":"WSUS server address type","category":"Machine Hardening - Patching","scope":"","status":"Pass","severity":"Low","finding":"WSUS is referenced by host name.","evidence":"WUServer=http://wsus01.corp.contoso.com:8530","comments":"","relatedFile":"Windows-Updates_FIN-WS-0142.txt","remediation":"Reference WSUS by FQDN so Kerberos (not NTLM) is used.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1557.001"],"mitigations":[]},{"id":"machine_lastPatch","name":"Patch recency","category":"Machine Hardening - Patching","scope":"","status":"Warning","severity":"High","finding":"No update for 44 days - at least one Patch Tuesday was missed.","evidence":"Most recent update installed 2026-08-14 (44 days ago)","comments":"","relatedFile":"Hotfixes_FIN-WS-0142.txt","remediation":"Install the latest cumulative update. Target: security updates within 14 days (critical/exploited within 72 hours) of Patch Tuesday.","reference":"","coverage":"Prevent","priority":5.08,"techniques":["T1068","T1210","T1203"],"mitigations":["M1051"]},{"id":"vul_quotedPath","name":"Unquoted service paths","category":"Machine Vulnerabilities","scope":"","status":"Fail","severity":"Critical","finding":"1 unquoted service path(s); 1 with a hijack folder writable by non-admins (direct privilege escalation).","evidence":"AcmeBackupAgent [C:\\Program Files\\Acme Backup\\agent service.exe -k backup] WRITABLE: C:\\Program Files\\Acme Backup","comments":"","relatedFile":"Services_FIN-WS-0142.txt","remediation":"Quote the ImagePath of every listed service (HKLM\\SYSTEM\\CurrentControlSet\\Services\\\u003csvc\u003e\\ImagePath) and verify non-admins cannot write to any parent folder in the path.","reference":"","coverage":"Prevent","priority":11.5,"techniques":["T1574.009"],"mitigations":["M1047","M1022"]},{"id":"domain_NTLMComLevel","name":"LAN Manager authentication level","category":"Machine Hardening - Authentication","scope":"","status":"Pass","severity":"High","finding":"Only NTLMv2 responses are sent (level 3).","evidence":"LmCompatibilityLevel=3 (effective 3: Send NTLMv2 response only)","comments":"","relatedFile":"Domain-Authentication_FIN-WS-0142.txt","remediation":"GPO: 'Network security: LAN Manager authentication level' = 'Send NTLMv2 response only. Refuse LM \u0026 NTLM' (LmCompatibilityLevel = 5). Audit NTLMv1 usage first (event 4624, Package Name NTLM V1).","reference":"https://learn.microsoft.com/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/network-security-lan-manager-authentication-level","coverage":"Prevent","priority":0.0,"techniques":["T1557.001","T1110.002","T1550.002"],"mitigations":["M1042"]},{"id":"domain_SMBv1","name":"SMBv1 server","category":"Domain Hardening - SMB","scope":"","status":"Pass","severity":"High","finding":"The SMBv1 server protocol is disabled.","evidence":"Get-SmbServerConfiguration: EnableSMB1Protocol=False","comments":"","relatedFile":"SMB_FIN-WS-0142.txt","remediation":"Remove SMB1: Disable-WindowsOptionalFeature -Online -FeatureName SMB1Protocol (or Set-SmbServerConfiguration -EnableSMB1Protocol $false). Audit first with Set-SmbServerConfiguration -AuditSmb1Access $true.","reference":"https://learn.microsoft.com/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3","coverage":"Prevent","priority":0.0,"techniques":["T1210","T1021.002"],"mitigations":["M1042","M1051"]},{"id":"domain_SMBv2-3","name":"SMB2/3 server support","category":"Domain Hardening - SMB","scope":"","status":"Info","severity":"Informational","finding":"SMB2/3 server is enabled.","evidence":"EnableSMB2Protocol=True","comments":"","relatedFile":"SMB_FIN-WS-0142.txt","remediation":"","reference":"","coverage":"","priority":0.0,"techniques":[],"mitigations":[]},{"id":"domain_SMBv1-client","name":"SMBv1 client driver (mrxsmb10)","category":"Domain Hardening - SMB","scope":"","status":"Pass","severity":"Medium","finding":"The SMBv1 client driver is disabled or not installed.","evidence":"mrxsmb10 Start=(driver not installed); LanmanWorkstation DependOnService=Bowser,MRxSmb20,NSI","comments":"","relatedFile":"SMB_FIN-WS-0142.txt","remediation":"Remove the SMB1Protocol-Client feature, or: sc.exe config lanmanworkstation depend= bowser/mrxsmb20/nsi and sc.exe config mrxsmb10 start= disabled.","reference":"https://learn.microsoft.com/windows-server/storage/file-server/troubleshoot/detect-enable-and-disable-smbv1-v2-v3","coverage":"Prevent","priority":0.0,"techniques":["T1210","T1557"],"mitigations":["M1042"]},{"id":"domain_SMBv2-srvSign","name":"SMB server signing required","category":"Domain Hardening - SMB","scope":"","status":"Fail","severity":"High","finding":"SMB signing is enabled but not required by the server - NTLM relay to this host is possible.","evidence":"Get-SmbServerConfiguration: RequireSecuritySignature=False; EnableSecuritySignature=True","comments":"","relatedFile":"SMB_FIN-WS-0142.txt","remediation":"GPO: 'Microsoft network server: Digitally sign communications (always)' = Enabled (RequireSecuritySignature = 1). Mandatory on DCs and file servers.","reference":"https://learn.microsoft.com/windows-server/storage/file-server/smb-signing","coverage":"Prevent","priority":8.05,"techniques":["T1557.001"],"mitigations":["M1037"]},{"id":"domain_SMBv2-clientSign","name":"SMB client signing required","category":"Domain Hardening - SMB","scope":"","status":"Fail","severity":"Medium","finding":"SMB signing is not required by the client.","evidence":"Get-SmbClientConfiguration: RequireSecuritySignature=False; EnableSecuritySignature=True","comments":"","relatedFile":"SMB_FIN-WS-0142.txt","remediation":"GPO: 'Microsoft network client: Digitally sign communications (always)' = Enabled.","reference":"https://learn.microsoft.com/windows-server/storage/file-server/smb-signing","coverage":"Prevent","priority":4.6,"techniques":["T1557.001"],"mitigations":["M1037"]},{"id":"machine_RDP-reg","name":"RDP service status","category":"Machine Hardening - RDP","scope":"","status":"Warning","severity":"Low","finding":"RDP is enabled on a workstation.","evidence":"fDenyTSConnections policy=; local=0; effective=0; PortNumber=3389","comments":"","relatedFile":"RDP_FIN-WS-0142.txt","remediation":"Disable RDP where not required (fDenyTSConnections = 1). Where required, restrict TCP 3389 to a PAW/jump-host subnet with Windows Firewall and require NLA.","reference":"","coverage":"Prevent","priority":1.15,"techniques":["T1021.001"],"mitigations":["M1042","M1035"]},{"id":"machine_RDP-Users","name":"RDP allowed users","category":"Machine Hardening - RDP","scope":"","status":"Fail","severity":"Medium","finding":"Broad principals can log on over RDP: CORP\\Domain Users","evidence":"Members: CORP\\Domain Users, CORP\\Helpdesk","comments":"","relatedFile":"RDP_FIN-WS-0142.txt","remediation":"Remove broad principals (Everyone, Authenticated Users, Domain Users) from 'Remote Desktop Users'; grant 'Allow log on through Remote Desktop Services' to named admin groups only.","reference":"","coverage":"Prevent","priority":5.2,"techniques":["T1021.001","T1078"],"mitigations":["M1018","M1026"]},{"id":"machine_RDP-NLA","name":"RDP Network Level Authentication","category":"Machine Hardening - RDP","scope":"","status":"Pass","severity":"Medium","finding":"NLA is required.","evidence":"UserAuthentication=1 (RDP-Tcp registry)","comments":"","relatedFile":"RDP_FIN-WS-0142.txt","remediation":"GPO: 'Require user authentication for remote connections by using Network Level Authentication' = Enabled (UserAuthentication = 1).","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1021.001","T1210"],"mitigations":["M1028"]},{"id":"machine_RDP-TLS","name":"RDP security layer (TLS)","category":"Machine Hardening - RDP","scope":"","status":"Warning","severity":"Low","finding":"RDP security layer is 'Negotiate' - TLS not enforced.","evidence":"SecurityLayer=1 (RDP-Tcp registry)","comments":"","relatedFile":"RDP_FIN-WS-0142.txt","remediation":"GPO: 'Require use of specific security layer for remote (RDP) connections' = SSL (SecurityLayer = 2) and bind a certificate from an internal CA.","reference":"","coverage":"Prevent","priority":1.3,"techniques":["T1557","T1021.001"],"mitigations":["M1041"]},{"id":"machine_RDP-Timeout","name":"RDP session time limits","category":"Machine Hardening - RDP","scope":"","status":"Fail","severity":"Low","finding":"RDP session time limits are not configured - disconnected sessions persist and can be hijacked.","evidence":"MaxDisconnectionTime=; MaxIdleTime=; fResetBroken= (ms; 60000 = 1 minute)","comments":"","relatedFile":"RDP_FIN-WS-0142.txt","remediation":"GPO: Remote Desktop Session Host \u003e Session Time Limits - set disconnected (MaxDisconnectionTime) and idle (MaxIdleTime) limits and enable 'End session when time limits are reached' (fResetBroken = 1).","reference":"","coverage":"Prevent","priority":2.3,"techniques":["T1563.002"],"mitigations":["M1028"]},{"id":"machine_LSA-CG-wmi","name":"Credential Guard","category":"Machine Hardening - Authentication","scope":"","status":"Fail","severity":"Medium","finding":"Credential Guard is not enabled.","evidence":"SecurityServicesConfigured=0; SecurityServicesRunning=0; VBS status=0","comments":"","relatedFile":"Credential-Guard_FIN-WS-0142.txt","remediation":"Enable VBS with Credential Guard (GPO: System \u003e Device Guard \u003e Turn On Virtualization Based Security \u003e Credential Guard Configuration = Enabled with UEFI lock). Validate UEFI, Secure Boot, TPM 2.0 and virtualization extensions first.","reference":"https://learn.microsoft.com/windows/security/identity-protection/credential-guard/configure","coverage":"Prevent","priority":5.8,"techniques":["T1003.001","T1550.002","T1558"],"mitigations":["M1043"]},{"id":"machine_LSA-ppl","name":"LSA Protection (RunAsPPL)","category":"Machine Hardening - Authentication","scope":"","status":"Fail","severity":"High","finding":"RunAsPPL is not set - LSA protection is off.","evidence":"RunAsPPL=","comments":"","relatedFile":"LSA-Protection_FIN-WS-0142.txt","remediation":"Set HKLM\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\RunAsPPL = 1 (UEFI lock) or 2 (no UEFI lock, Windows 11 22H2+) via GPO 'Configure LSASS to run as a protected process'. Audit third-party LSA plug-ins first (CodeIntegrity events 3065/3066).","reference":"https://learn.microsoft.com/windows-server/security/credentials-protection-and-management/configuring-additional-lsa-protection","coverage":"Prevent","priority":9.1,"techniques":["T1003.001","T1547.008"],"mitigations":["M1025"]},{"id":"machine_AVName","name":"Antivirus registration and health","category":"Machine Hardening - Security","scope":"","status":"Pass","severity":"Critical","finding":"An enabled antivirus product with current signatures is registered.","evidence":"Microsoft Defender Antivirus: state 0x061100, enabled=True, signatures up to date=True","comments":"","relatedFile":"Antivirus_FIN-WS-0142.txt","remediation":"Ensure an AV/EDR product is registered, running, and has signatures updated within 24 hours.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1566.001","T1027"],"mitigations":["M1049"]},{"id":"machine_DefenderRTP","name":"Microsoft Defender real-time protection","category":"Machine Hardening - Security","scope":"","status":"Pass","severity":"High","finding":"Defender real-time protection is on.","evidence":"RealTimeProtectionEnabled=True; BehaviorMonitorEnabled=True; IoavProtectionEnabled=True","comments":"","relatedFile":"Antivirus_FIN-WS-0142.txt","remediation":"Enable real-time protection and behavior monitoring; review exclusions (Get-MpPreference ExclusionPath/Process/Extension) for over-broad entries.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1685"],"mitigations":["M1054"]},{"id":"machine_DefenderTamper","name":"Microsoft Defender tamper protection","category":"Machine Hardening - Security","scope":"","status":"Fail","severity":"Medium","finding":"Defender tamper protection is off - local admins/malware can disable Defender.","evidence":"IsTamperProtected=False","comments":"","relatedFile":"Antivirus_FIN-WS-0142.txt","remediation":"Enable tamper protection tenant-wide from the Defender portal (Settings \u003e Endpoints \u003e Advanced features) or Intune.","reference":"https://learn.microsoft.com/defender-endpoint/prevent-changes-to-security-settings-with-tamper-protection","coverage":"Prevent","priority":4.6,"techniques":["T1685"],"mitigations":["M1054"]},{"id":"machine_ASR-LSASS","name":"ASR - Block credential stealing from LSASS","category":"Machine Hardening - Security","scope":"","status":"Warning","severity":"Medium","finding":"ASR LSASS rule is in audit/warn mode only.","evidence":"9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2=Audit","comments":"","relatedFile":"Antivirus_FIN-WS-0142.txt","remediation":"Configure Defender ASR rule 9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2 in Block mode (1) via Intune/GPO. Pilot in Audit mode (2) first.","reference":"https://learn.microsoft.com/defender-endpoint/attack-surface-reduction-rules-reference","coverage":"Prevent","priority":2.3,"techniques":["T1003.001"],"mitigations":["M1040"]},{"id":"machine_ASR-Office","name":"ASR - Office child process / injection rules","category":"Machine Hardening - Security","scope":"","status":"Warning","severity":"Medium","finding":"2 of 4 Office ASR rules block; 0 audit/warn only.","evidence":"d4f940ab=Block; 3b576869=Block; 75668c1f=NotConfigured; 92e97fa1=NotConfigured","comments":"","relatedFile":"Antivirus_FIN-WS-0142.txt","remediation":"Set ASR rules d4f940ab-401b-4efc-aadc-ad5f3c50688a, 3b576869-a4ec-4529-8536-b80a7769e899, 75668c1f-73b5-4cf0-bb93-3ecf5cb7cc84 and 92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b to Block (1).","reference":"https://learn.microsoft.com/defender-endpoint/attack-surface-reduction-rules-reference","coverage":"Prevent","priority":2.6,"techniques":["T1204.002","T1566.001"],"mitigations":["M1040"]},{"id":"machine_FirewallProfiles","name":"Windows Firewall profiles","category":"Machine Hardening - Network Access","scope":"","status":"Fail","severity":"High","finding":"Windows Firewall is disabled for profile(s): Public","evidence":"Domain: Enabled=True, Inbound=Block; Private: Enabled=True, Inbound=Block; Public: Enabled=False, Inbound=Block","comments":"","relatedFile":"Windows-Firewall_FIN-WS-0142.txt","remediation":"Enable Windows Firewall on Domain, Private and Public profiles with default inbound action Block, managed by GPO so local admins cannot override (disable local rule merge).","reference":"","coverage":"Prevent","priority":9.1,"techniques":["T1021","T1686.003"],"mitigations":["M1035"]},{"id":"domain_LLMNR","name":"LLMNR","category":"Domain Hardening - Network","scope":"","status":"Fail","severity":"High","finding":"LLMNR is enabled - hosts answer poisoned name queries (Responder/Inveigh).","evidence":"EnableMulticast=","comments":"","relatedFile":"LLMNR_NetBIOS_mDNS_FIN-WS-0142.txt","remediation":"GPO: Network \u003e DNS Client \u003e 'Turn off multicast name resolution' = Enabled (EnableMulticast = 0).","reference":"","coverage":"Prevent","priority":8.05,"techniques":["T1557.001"],"mitigations":["M1042","M1037"]},{"id":"domain_NetBIOSoTCP","name":"NetBIOS over TCP/IP (per interface)","category":"Domain Hardening - Network","scope":"","status":"Fail","severity":"Medium","finding":"NetBIOS over TCP/IP is enabled (or DHCP-controlled) on: Intel(R) Ethernet Connection I219-LM, Intel(R) Wi-Fi 6E AX211","evidence":"Intel(R) Ethernet Connection I219-LM=0; Intel(R) Wi-Fi 6E AX211=0","comments":"","relatedFile":"LLMNR_NetBIOS_mDNS_FIN-WS-0142.txt","remediation":"Disable NetBIOS over TCP/IP on all interfaces (NetbiosOptions = 2) via DHCP option 001 (Microsoft vendor class) or configuration management.","reference":"","coverage":"Prevent","priority":4.6,"techniques":["T1557.001"],"mitigations":["M1042"]},{"id":"domain_NetBIOSNT","name":"NetBIOS node type","category":"Domain Hardening - Network","scope":"","status":"Fail","severity":"Medium","finding":"NetBIOS name resolution uses broadcasts: not set (B-node, or H-node when WINS is configured).","evidence":"NodeType=","comments":"","relatedFile":"LLMNR_NetBIOS_mDNS_FIN-WS-0142.txt","remediation":"Set NetBT NodeType = 2 (P-node) via GPO (MS Security Guide 'NetBT NodeType configuration') or disable NetBIOS over TCP/IP on every interface.","reference":"","coverage":"Prevent","priority":4.6,"techniques":["T1557.001"],"mitigations":["M1042"]},{"id":"domain_mDNS","name":"mDNS responder","category":"Domain Hardening - Network","scope":"","status":"Warning","severity":"Medium","finding":"mDNS is enabled (Windows default) - Responder can poison mDNS answers unless UDP 5353 is filtered.","evidence":"Dnscache EnableMDNS=; policy EnableMDNS=","comments":"","relatedFile":"LLMNR_NetBIOS_mDNS_FIN-WS-0142.txt","remediation":"Disable mDNS where not required: HKLM\\SYSTEM\\CurrentControlSet\\Services\\Dnscache\\Parameters\\EnableMDNS = 0, or block UDP 5353 inbound in Windows Firewall.","reference":"","coverage":"Prevent","priority":2.3,"techniques":["T1557.001"],"mitigations":["M1042","M1037"]},{"id":"domain_mitm6","name":"IPv6 DHCPv6 spoofing exposure (mitm6)","category":"Domain Hardening - Network","scope":"","status":"Warning","severity":"Medium","finding":"IPv6 is enabled and inbound DHCPv6 is allowed - an attacker on the segment can become the DNS server (mitm6) and relay NTLM.","evidence":"IPv6 bound adapters=1; CoreNet-DHCPV6-In Enabled=True Action=Allow; inbound UDP block ports=","comments":"","relatedFile":"IPv6-DHCPv6_FIN-WS-0142.txt","remediation":"If IPv6 is not used, block inbound DHCPv6 (UDP 546) and inbound ICMPv6 Router Advertisements and outbound DHCPv6 (UDP 547) via Windows Firewall GPO. Do not unbind IPv6 (unsupported by Microsoft).","reference":"","coverage":"Prevent","priority":2.3,"techniques":["T1557.003"],"mitigations":["M1037"]},{"id":"domain_WDigest","name":"WDigest clear-text credentials in LSASS","category":"Machine Hardening - Authentication","scope":"","status":"Pass","severity":"Critical","finding":"WDigest caching is off by default on Windows 8.1/2012 R2+.","evidence":"UseLogonCredential not set","comments":"Set UseLogonCredential=0 explicitly and monitor it, so a malicious change is detectable.","relatedFile":"WDigest_FIN-WS-0142.txt","remediation":"Set HKLM\\SYSTEM\\CurrentControlSet\\Control\\SecurityProviders\\WDigest\\UseLogonCredential = 0 via GPO (MS Security Guide ADMX: 'WDigest Authentication' = Disabled) and alert on any change to this value (a common attacker tactic).","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1003.001"],"mitigations":["M1028"]},{"id":"domain_NetSessionEnum","name":"NetSessionEnum (SMB session enumeration) permissions","category":"Domain Hardening - Enumeration","scope":"","status":"Pass","severity":"Medium","finding":"SMB session enumeration is restricted (Authenticated Users/Everyone not granted).","evidence":"Administrators (Allow); Server Operators (Allow); INTERACTIVE (Allow); SYSTEM (Allow)","comments":"","relatedFile":"NetSession_FIN-WS-0142.txt","remediation":"Remove Authenticated Users from the SrvsvcSessionInfo ACL (NetCease or equivalent), most importantly on DCs and file servers. Windows Server 2019+/Windows 10 1607+ are hardened by default.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1049","T1033"],"mitigations":[]},{"id":"domain_SAMEnum","name":"Remote SAM (SAMR) enumeration","category":"Domain Hardening - Enumeration","scope":"","status":"Pass","severity":"High","finding":"Remote SAM enumeration is restricted to Administrators by OS default (Windows 10 1607 / Server 2016+).","evidence":"RestrictRemoteSAM not set (OS default: Administrators only)","comments":"","relatedFile":"SAM-Enumeration_FIN-WS-0142.txt","remediation":"GPO: 'Network access: Restrict clients allowed to make remote calls to SAM' = O:BAG:BAD:(A;;RC;;;BA) (Administrators only).","reference":"https://learn.microsoft.com/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/network-access-restrict-clients-allowed-to-make-remote-sam-calls","coverage":"Prevent","priority":0.0,"techniques":["T1087.001","T1069.001"],"mitigations":["M1028"]},{"id":"machine_PSv2","name":"PowerShell 2.0 engine","category":"Machine Hardening - Operation system","scope":"","status":"Fail","severity":"High","finding":"The PowerShell 2.0 engine is installed and runnable (.NET 3.5 present) - logging/AMSI can be bypassed with \"powershell -version 2\".","evidence":"Feature: Optional feature MicrosoftWindowsPowerShellV2Root=Enabled; PowerShellEngine\\1 version=2.0; .NET 2.0/3.5 CLR present=True","comments":"","relatedFile":"PowerShell-Versions_FIN-WS-0142.txt","remediation":"Remove the engine: Disable-WindowsOptionalFeature -Online -FeatureName MicrosoftWindowsPowerShellV2Root (clients) or Uninstall-WindowsFeature PowerShell-V2 (servers).","reference":"","coverage":"Prevent","priority":9.1,"techniques":["T1689","T1059.001"],"mitigations":["M1042"]},{"id":"domain_GPOReRegistry","name":"GPO reprocessing - registry policy","category":"Domain Hardening - General","scope":"","status":"Pass","severity":"Medium","finding":"GPO registry policy is reprocessed even when unchanged.","evidence":"NoGPOListChanges=0","comments":"","relatedFile":"GPO-Reprocess_FIN-WS-0142.txt","remediation":"GPO: System \u003e Group Policy \u003e 'Configure registry policy processing' = Enabled with 'Process even if the Group Policy objects have not changed' checked.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1112","T1685"],"mitigations":["M1054"]},{"id":"domain_GPOReScript","name":"GPO reprocessing - scripts policy","category":"Domain Hardening - General","scope":"","status":"Fail","severity":"Low","finding":"GPO scripts policy reprocessing is not configured (only applied when the GPO changes).","evidence":"NoGPOListChanges not set","comments":"","relatedFile":"GPO-Reprocess_FIN-WS-0142.txt","remediation":"GPO: 'Configure scripts policy processing' = Enabled with 'Process even if the Group Policy objects have not changed'.","reference":"","coverage":"Prevent","priority":2.6,"techniques":["T1112","T1685"],"mitigations":["M1054"]},{"id":"domain_GPOReSecurity","name":"GPO reprocessing - security policy","category":"Domain Hardening - General","scope":"","status":"Fail","severity":"Medium","finding":"GPO security policy reprocessing is not configured (only applied when the GPO changes).","evidence":"NoGPOListChanges not set","comments":"","relatedFile":"GPO-Reprocess_FIN-WS-0142.txt","remediation":"GPO: 'Configure security policy processing' = Enabled with 'Process even if the Group Policy objects have not changed'.","reference":"","coverage":"Prevent","priority":5.2,"techniques":["T1112","T1685"],"mitigations":["M1054"]},{"id":"machine_ComLineLog","name":"Process creation command-line auditing","category":"Machine Hardening - Audit","scope":"","status":"Pass","severity":"Medium","finding":"Process creation auditing with command lines is enabled.","evidence":"ProcessCreationIncludeCmdLine_Enabled=1; Process Creation audit=Success; Sysmon installed=False","comments":"","relatedFile":"Audit-Policy_FIN-WS-0142.txt","remediation":"Enable 'Audit Process Creation' (Success) and 'Include command line in process creation events' (ProcessCreationIncludeCmdLine_Enabled = 1). Forward event 4688.","reference":"https://learn.microsoft.com/windows-server/identity/ad-ds/manage/component-updates/command-line-process-auditing","coverage":"Detect","priority":0.0,"techniques":["T1059.003","T1059.001"],"mitigations":[]},{"id":"machine_PSModuleLog","name":"PowerShell module logging","category":"Machine Hardening - Audit","scope":"","status":"Fail","severity":"Medium","finding":"PowerShell module logging is not enabled.","evidence":"HKLM Enable= Modules=[]; HKCU Enable= Modules=[]","comments":"","relatedFile":"Audit-Policy_FIN-WS-0142.txt","remediation":"GPO: Windows PowerShell \u003e 'Turn on Module Logging' = Enabled with module name '*' (HKLM policy).","reference":"https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_logging_windows","coverage":"Detect","priority":4.6,"techniques":["T1059.001"],"mitigations":[]},{"id":"machine_PSScriptBlock","name":"PowerShell script block logging","category":"Machine Hardening - Audit","scope":"","status":"Pass","severity":"High","finding":"Script block logging is enabled machine-wide.","evidence":"HKLM Enable=1 Invocation=; HKCU Enable=","comments":"Invocation logging (start/stop events) is off - optional, high volume.","relatedFile":"Audit-Policy_FIN-WS-0142.txt","remediation":"GPO: Windows PowerShell \u003e 'Turn on PowerShell Script Block Logging' = Enabled (HKLM policy). Forward event 4104 to the SIEM.","reference":"https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_logging_windows","coverage":"Detect","priority":0.0,"techniques":["T1059.001","T1027"],"mitigations":[]},{"id":"machine_PSTranscript","name":"PowerShell transcription","category":"Machine Hardening - Audit","scope":"","status":"Fail","severity":"Medium","finding":"PowerShell transcription is not enabled.","evidence":"EnableTranscripting not set","comments":"","relatedFile":"Audit-Policy_FIN-WS-0142.txt","remediation":"GPO: 'Turn on PowerShell Transcription' = Enabled with invocation headers and a write-only central OutputDirectory (UNC share with create-only ACL).","reference":"","coverage":"Detect","priority":4.6,"techniques":["T1059.001"],"mitigations":[]},{"id":"machine_AppMaxLog","name":"Application event log maximum size","category":"Machine Hardening - Audit","scope":"","status":"Fail","severity":"Low","finding":"Application log maximum size is 20 MB (below 32 MB) - evidence rolls over quickly unless forwarded to a SIEM.","evidence":"Application: 20 MB (effective (no policy)); recommended \u003e= 32 MB","comments":"","relatedFile":"Audit-Policy_FIN-WS-0142.txt","remediation":"Set the Application log maximum size to at least 32,768 KB via GPO and forward events to the SIEM.","reference":"","coverage":"Detect","priority":2.3,"techniques":["T1685.005"],"mitigations":["M1029"]},{"id":"machine_SysMaxLog","name":"System event log maximum size","category":"Machine Hardening - Audit","scope":"","status":"Fail","severity":"Low","finding":"System log maximum size is 20 MB (below 32 MB) - evidence rolls over quickly unless forwarded to a SIEM.","evidence":"System: 20 MB (effective (no policy)); recommended \u003e= 32 MB","comments":"","relatedFile":"Audit-Policy_FIN-WS-0142.txt","remediation":"Set the System log maximum size to at least 32,768 KB via GPO and forward events to the SIEM.","reference":"","coverage":"Detect","priority":2.3,"techniques":["T1685.005"],"mitigations":["M1029"]},{"id":"machine_SecMaxLog","name":"Security event log maximum size","category":"Machine Hardening - Audit","scope":"","status":"Fail","severity":"Medium","finding":"Security log maximum size is 20 MB (below 192 MB) - evidence rolls over quickly unless forwarded to a SIEM.","evidence":"Security: 20 MB (policy); recommended \u003e= 192 MB","comments":"","relatedFile":"Audit-Policy_FIN-WS-0142.txt","remediation":"Set the Security log maximum size to at least 196,608 KB via GPO and forward events to the SIEM in near real time.","reference":"","coverage":"Detect","priority":4.6,"techniques":["T1685.005"],"mitigations":["M1029"]},{"id":"machine_SetupMaxLog","name":"Setup event log","category":"Machine Hardening - Audit","scope":"","status":"Fail","severity":"Informational","finding":"Setup log maximum size is 1 MB (below 32 MB) - evidence rolls over quickly unless forwarded to a SIEM.","evidence":"Setup: 1 MB (effective (no policy)); recommended \u003e= 32 MB","comments":"","relatedFile":"Audit-Policy_FIN-WS-0142.txt","remediation":"","reference":"","coverage":"","priority":0.0,"techniques":[],"mitigations":[]},{"id":"machine_installWithElevation","name":"AlwaysInstallElevated","category":"Machine Hardening - Operation system","scope":"","status":"Warning","severity":"High","finding":"AlwaysInstallElevated is enabled in one hive only - not exploitable alone, but one user-policy change away (check other users).","evidence":"HKLM=1; HKCU= (HKCU evaluated for the account running the script)","comments":"","relatedFile":"Machine-Hardening_FIN-WS-0142.txt","remediation":"Set 'Always install with elevated privileges' = Disabled in both Computer and User configuration (AlwaysInstallElevated = 0 under HKLM and HKCU).","reference":"https://learn.microsoft.com/windows/win32/msi/alwaysinstallelevated","coverage":"Prevent","priority":4.55,"techniques":["T1218.007","T1548"],"mitigations":["M1042","M1026"]},{"id":"machine_SafeModeAcc4NonAdmin","name":"Safe Mode access by non-admins","category":"Machine Hardening - Operation system","scope":"","status":"Fail","severity":"Low","finding":"Non-admins can log on in Safe Mode, where EDR/AV services may not run.","evidence":"SafeModeBlockNonAdmins=","comments":"","relatedFile":"Machine-Hardening_FIN-WS-0142.txt","remediation":"Set HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Policies\\System\\SafeModeBlockNonAdmins = 1.","reference":"","coverage":"Prevent","priority":2.3,"techniques":["T1688"],"mitigations":["M1054","M1026"]},{"id":"machine_UAC-EnableLUA","name":"UAC - Admin Approval Mode","category":"Machine Hardening - Security","scope":"","status":"Pass","severity":"High","finding":"UAC Admin Approval Mode is enabled.","evidence":"EnableLUA=1; ConsentPromptBehaviorAdmin=5; PromptOnSecureDesktop=1; LocalAccountTokenFilterPolicy=; FilterAdministratorToken=","comments":"","relatedFile":"Machine-Hardening_FIN-WS-0142.txt","remediation":"GPO: 'User Account Control: Run all administrators in Admin Approval Mode' = Enabled (EnableLUA = 1).","reference":"https://learn.microsoft.com/windows/security/application-security/application-control/user-account-control/settings-and-configuration","coverage":"Prevent","priority":0.0,"techniques":["T1548.002"],"mitigations":["M1052"]},{"id":"machine_UAC-AdminPrompt","name":"UAC - Elevation prompt for administrators","category":"Machine Hardening - Security","scope":"","status":"Warning","severity":"Medium","finding":"UAC uses the default auto-elevation for Windows binaries (value 5) or no secure desktop - many public UAC bypasses apply.","evidence":"EnableLUA=1; ConsentPromptBehaviorAdmin=5; PromptOnSecureDesktop=1; LocalAccountTokenFilterPolicy=; FilterAdministratorToken=","comments":"","relatedFile":"Machine-Hardening_FIN-WS-0142.txt","remediation":"GPO: 'Behavior of the elevation prompt for administrators in Admin Approval Mode' = 'Prompt for consent on the secure desktop' (2) or 'Prompt for credentials on the secure desktop' (1).","reference":"https://learn.microsoft.com/windows/security/application-security/application-control/user-account-control/settings-and-configuration","coverage":"Prevent","priority":2.3,"techniques":["T1548.002"],"mitigations":["M1052"]},{"id":"machine_UAC-RemoteRestrictions","name":"UAC remote restrictions for local accounts","category":"Machine Hardening - Security","scope":"","status":"Pass","severity":"High","finding":"UAC remote restrictions apply to local accounts.","evidence":"EnableLUA=1; ConsentPromptBehaviorAdmin=5; PromptOnSecureDesktop=1; LocalAccountTokenFilterPolicy=; FilterAdministratorToken=","comments":"","relatedFile":"Machine-Hardening_FIN-WS-0142.txt","remediation":"Remove LocalAccountTokenFilterPolicy (or set 0) and apply the MS Security Guide setting 'Apply UAC restrictions to local accounts on network logons'.","reference":"https://learn.microsoft.com/troubleshoot/windows-server/windows-security/user-account-control-and-remote-restriction","coverage":"Prevent","priority":0.0,"techniques":["T1550.002","T1021.002"],"mitigations":["M1052","M1026"]},{"id":"machine_LAPS","name":"Local administrator password management (LAPS)","category":"Machine Hardening - Users","scope":"","status":"Pass","severity":"High","finding":"Windows LAPS backs up the local admin password to Active Directory.","evidence":"WindowsLAPS=Windows LAPS (GPO) BackupDirectory=2; Legacy AdmPwdEnabled=; Legacy CSE installed=False","comments":"","relatedFile":"Machine-Hardening_FIN-WS-0142.txt","remediation":"Deploy Windows LAPS (BackupDirectory = 1 Entra ID or 2 Active Directory) with password encryption, and retire legacy Microsoft LAPS.","reference":"https://learn.microsoft.com/windows-server/identity/laps/laps-overview","coverage":"Prevent","priority":0.0,"techniques":["T1078.003","T1550.002"],"mitigations":["M1026","M1027"]},{"id":"machine_ethSim","name":"Simultaneous network connections","category":"Machine Hardening - Networking","scope":"","status":"Manual","severity":"Low","finding":"Not configured by policy (Windows default minimises connections) - confirm for mobile devices.","evidence":"fMinimizeConnections=","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"GPO: Network \u003e Windows Connection Manager \u003e 'Minimize the number of simultaneous connections to the Internet or a Windows Domain' = 3 (Prevent Wi-Fi when on Ethernet).","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1011"],"mitigations":["M1028"]},{"id":"machine_PCTNDNetwork","name":"Non-domain networks while domain-connected","category":"Machine Hardening - Networking","scope":"","status":"Manual","severity":"Low","finding":"Not configured - review for mobile workstations.","evidence":"fBlockNonDomain not set","comments":"","relatedFile":"Internet-Connectivity_FIN-WS-0142.txt","remediation":"GPO: 'Prohibit connection to non-domain networks when connected to domain authenticated network' = Enabled.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1011"],"mitigations":["M1028"]},{"id":"domain_kerbSupEnc","name":"Kerberos supported encryption types","category":"Machine Hardening - Authentication","scope":"","status":"Fail","severity":"Medium","finding":"Weak Kerberos encryption types are allowed: RC4-HMAC","evidence":"SupportedEncryptionTypes=0x1C (RC4-HMAC, AES128, AES256)","comments":"","relatedFile":"Domain-Authentication_FIN-WS-0142.txt","remediation":"GPO: 'Network security: Configure encryption types allowed for Kerberos' = AES128 + AES256 (+ Future). Remove DES and RC4 after confirming no service accounts depend on them (msDS-SupportedEncryptionTypes).","reference":"https://learn.microsoft.com/previous-versions/windows/it-pro/windows-10/security/threat-protection/security-policy-settings/network-security-configure-encryption-types-allowed-for-kerberos","coverage":"Prevent","priority":5.2,"techniques":["T1558.003","T1558.004"],"mitigations":["M1041"]},{"id":"domain_PrevStorOfPassAndCred","name":"Storage of network passwords and credentials","category":"Machine Hardening - Authentication","scope":"","status":"Fail","severity":"Medium","finding":"Windows may store network passwords and credentials (Credential Manager).","evidence":"DisableDomainCreds=","comments":"","relatedFile":"Domain-Authentication_FIN-WS-0142.txt","remediation":"GPO: 'Network access: Do not allow storage of passwords and credentials for network authentication' = Enabled (DisableDomainCreds = 1).","reference":"","coverage":"Prevent","priority":4.6,"techniques":["T1555.004"],"mitigations":["M1042"]},{"id":"domain_CredSSPDefaultCred","name":"CredSSP - Allow delegation of default credentials","category":"Machine Hardening - Authentication","scope":"","status":"Fail","severity":"Medium","finding":"Delegation of default credentials is allowed to: TERMSRV/*","evidence":"AllowDefaultCredentials=1; targets=[TERMSRV/*]","comments":"","relatedFile":"CredSSP_FIN-WS-0142.txt","remediation":"Leave 'Allow delegating default credentials' Not Configured/Disabled. If required, scope to explicit SPNs (never '*' or TERMSRV/*).","reference":"","coverage":"Prevent","priority":5.2,"techniques":["T1003.001","T1557"],"mitigations":["M1028"]},{"id":"domain_CredSSPDefaultCredNTLM","name":"CredSSP - Allow delegation of default credentials with NTLM-only","category":"Machine Hardening - Authentication","scope":"","status":"Pass","severity":"High","finding":"Delegation of default credentials to NTLM-only servers is not allowed (default).","evidence":"AllowDefCredentialsWhenNTLMOnly not configured","comments":"","relatedFile":"CredSSP_FIN-WS-0142.txt","remediation":"Disable 'Allow delegating default credentials with NTLM-only server authentication'. NTLM-only delegation sends reusable credentials to servers that were never mutually authenticated.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1003.001","T1557"],"mitigations":["M1028"]},{"id":"domain_CredSSPSavedCred","name":"CredSSP - Allow delegation of saved credentials","category":"Machine Hardening - Authentication","scope":"","status":"Warning","severity":"Low","finding":"Not configured - Windows allows delegation of saved credentials (default target TERMSRV/*).","evidence":"AllowSavedCredentials not configured","comments":"","relatedFile":"CredSSP_FIN-WS-0142.txt","remediation":"Configure 'Allow delegating saved credentials' with an explicit server list, or disable it. When not configured Windows permits delegation to TERMSRV/*.","reference":"","coverage":"Prevent","priority":1.3,"techniques":["T1003.001","T1557"],"mitigations":["M1028"]},{"id":"domain_CredSSPSavedCredNTLM","name":"CredSSP - Allow delegation of saved credentials with NTLM-only","category":"Machine Hardening - Authentication","scope":"","status":"Warning","severity":"Medium","finding":"Not configured - Windows allows delegation of saved credentials to NTLM-only servers (default target TERMSRV/*).","evidence":"AllowSavedCredentialsWhenNTLMOnly not configured","comments":"","relatedFile":"CredSSP_FIN-WS-0142.txt","remediation":"Disable 'Allow delegating saved credentials with NTLM-only server authentication' (not configured = allowed to TERMSRV/*).","reference":"","coverage":"Prevent","priority":2.6,"techniques":["T1003.001","T1557"],"mitigations":["M1028"]},{"id":"domain_CredSSPDefaultCredDeny","name":"CredSSP - Deny delegation of default credentials","category":"Machine Hardening - Authentication","scope":"","status":"Warning","severity":"Low","finding":"No explicit deny list for delegation of default credentials.","evidence":"DenyDefaultCredentials=; targets=[]","comments":"","relatedFile":"CredSSP_FIN-WS-0142.txt","remediation":"Enable 'Deny delegating default credentials' with '*' and add only the required exceptions to the allow lists.","reference":"","coverage":"Prevent","priority":1.15,"techniques":["T1003.001"],"mitigations":["M1028"]},{"id":"domain_CredSSPSavedCredDeny","name":"CredSSP - Deny delegation of saved credentials","category":"Machine Hardening - Authentication","scope":"","status":"Warning","severity":"Low","finding":"No explicit deny list for delegation of saved credentials.","evidence":"DenySavedCredentials=; targets=[]","comments":"","relatedFile":"CredSSP_FIN-WS-0142.txt","remediation":"Enable 'Deny delegating saved credentials' with '*' unless saved-credential RDP is an explicit business requirement.","reference":"","coverage":"Prevent","priority":1.15,"techniques":["T1003.001"],"mitigations":["M1028"]},{"id":"domain_CredSSPNonExportableCred","name":"Remote host allows delegation of non-exportable credentials","category":"Machine Hardening - Authentication","scope":"","status":"Fail","severity":"Low","finding":"This host does not accept non-exportable credentials - RDP users always expose reusable credentials to it.","evidence":"AllowProtectedCreds=","comments":"","relatedFile":"CredSSP_FIN-WS-0142.txt","remediation":"Enable 'Remote host allows delegation of non-exportable credentials' (AllowProtectedCreds = 1) on RDP targets so Remote Credential Guard can be used.","reference":"https://learn.microsoft.com/windows/security/identity-protection/remote-credential-guard","coverage":"Prevent","priority":2.6,"techniques":["T1003.001","T1550.002"],"mitigations":["M1043"]},{"id":"domain_CredSSPResDelOfCredToRemoteSrv","name":"Restrict delegation of credentials to remote servers","category":"Machine Hardening - Authentication","scope":"","status":"Fail","severity":"Low","finding":"Outgoing RDP sessions delegate reusable credentials to the remote host.","evidence":"RestrictedRemoteAdministration=; Type= ()","comments":"","relatedFile":"CredSSP_FIN-WS-0142.txt","remediation":"Enable 'Restrict delegation of credentials to remote servers' on admin workstations. Prefer 'Require Remote Credential Guard' - Restricted Admin mode enables pass-the-hash over RDP.","reference":"https://learn.microsoft.com/windows/security/identity-protection/remote-credential-guard","coverage":"Prevent","priority":2.6,"techniques":["T1003.001","T1021.001"],"mitigations":["M1043","M1028"]},{"id":"machine_excelDDE","name":"Excel automatic update of links (DDE)","category":"Machine Hardening - Software","scope":"Office 16.0","status":"Warning","severity":"Medium","finding":"Excel prompts before updating links (default) - users can still accept.","evidence":"WorkbookLinkWarnings= (default)","comments":"Office settings are per-user: evaluated for the account running this script.","relatedFile":"Office_FIN-WS-0142.txt","remediation":"Set Excel 'WorkbookLinkWarnings' = 2 (disable automatic update of workbook links) and disable DDE server launch via Office policy.","reference":"","coverage":"Prevent","priority":2.3,"techniques":["T1559.002"],"mitigations":["M1054","M1042"]},{"id":"machine_wordDDE","name":"Word automatic update of links (DDE)","category":"Machine Hardening - Software","scope":"Office 16.0","status":"Pass","severity":"Medium","finding":"Word DDE is disabled by default (ADV170021); set DontUpdateLinks=1 for defence in depth.","evidence":"AllowDDE= (default); DontUpdateLinks= (default)","comments":"Office settings are per-user: evaluated for the account running this script.","relatedFile":"Office_FIN-WS-0142.txt","remediation":"Set Word\\Options 'DontUpdateLinks' = 1.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1559.002"],"mitigations":["M1054","M1042"]},{"id":"machine_outlookDDE","name":"Outlook automatic update of links (DDE)","category":"Machine Hardening - Software","scope":"Office 16.0","status":"Warning","severity":"Medium","finding":"Outlook automatic link update is not disabled.","evidence":"WordMail DontUpdateLinks= (default)","comments":"Office settings are per-user: evaluated for the account running this script.","relatedFile":"Office_FIN-WS-0142.txt","remediation":"Set Word\\Options\\WordMail 'DontUpdateLinks' = 1.","reference":"","coverage":"Prevent","priority":2.3,"techniques":["T1559.002"],"mitigations":["M1054","M1042"]},{"id":"machine_officeVBAWarnings","name":"Office VBA macro notification settings","category":"Machine Hardening - Software","scope":"Office 16.0","status":"Warning","severity":"High","finding":"Macros are disabled with notification - users can still enable them.","evidence":"Word=default(2); Excel=default(2); PowerPoint=default(2)","comments":"Office settings are per-user: evaluated for the account running this script.","relatedFile":"Office_FIN-WS-0142.txt","remediation":"Office policy 'VBA Macro Notification Settings' = 'Disable all except digitally signed macros' (VBAWarnings = 3) or 'Disable all without notification' (4) for Word, Excel, PowerPoint, Outlook, Access, Visio, Publisher.","reference":"","coverage":"Prevent","priority":5.08,"techniques":["T1204.002","T1137","T1059.005"],"mitigations":["M1042","M1038"]},{"id":"machine_officeInternetMacros","name":"Block macros in files from the internet","category":"Machine Hardening - Software","scope":"Office 16.0","status":"Pass","severity":"High","finding":"Microsoft 365 Apps blocks internet macros by default (not enforced by policy).","evidence":"Word=; Excel=; PowerPoint=; build 16.0.17928.20156 blocks by default","comments":"Office settings are per-user: evaluated for the account running this script.","relatedFile":"Office_FIN-WS-0142.txt","remediation":"Office policy 'Block macros from running in Office files from the Internet' = Enabled (blockcontentexecutionfrominternet = 1) for Word, Excel, PowerPoint, Visio and Access.","reference":"https://learn.microsoft.com/microsoft-365-apps/security/internet-macros-blocked","coverage":"Prevent","priority":0.0,"techniques":["T1566.001","T1059.005"],"mitigations":["M1038","M1054"]},{"id":"control_AuditPol","name":"Audit policy","category":"Machine Hardening - Audit","scope":"","status":"Manual","severity":"Medium","finding":"Manual review: Review Audit-Policy output against the Microsoft/CIS advanced audit policy baseline (requires admin).","evidence":"","comments":"","relatedFile":"Audit-Policy","remediation":"Review Audit-Policy output against the Microsoft/CIS advanced audit policy baseline (requires admin).","reference":"","coverage":"Detect","priority":0.0,"techniques":["T1685.001"],"mitigations":["M1047"]},{"id":"control_LocalUsers","name":"Local users","category":"Machine Hardening - Users","scope":"","status":"Manual","severity":"High","finding":"Manual review: All local users should be disabled or LAPS-managed; deny local accounts network logon ('Deny access to this computer from the network': Local account).","evidence":"","comments":"","relatedFile":"Local-Users, Security-Policy.inf","remediation":"All local users should be disabled or LAPS-managed; deny local accounts network logon ('Deny access to this computer from the network': Local account).","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1078.003"],"mitigations":["M1026","M1027"]},{"id":"control_LocalAdminRes","name":"Local administrators in Restricted Groups","category":"Machine Hardening - Users","scope":"","status":"Manual","severity":"Low","finding":"Manual review: Manage local Administrators membership centrally (Restricted Groups / Group Policy Preferences / Intune LocalUsersAndGroups).","evidence":"","comments":"","relatedFile":"Security-Policy.inf","remediation":"Manage local Administrators membership centrally (Restricted Groups / Group Policy Preferences / Intune LocalUsersAndGroups).","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1098"],"mitigations":["M1026"]},{"id":"control_DomainAdminsAcc","name":"Domain admin access tiering","category":"Machine Hardening - Users","scope":"","status":"Manual","severity":"High","finding":"Manual review: Deny Tier-0 accounts logon to lower-tier hosts (Deny log on locally / through RDS / as a batch job / as a service), or use Authentication Policy Silos.","evidence":"","comments":"","relatedFile":"Security-Policy.inf","remediation":"Deny Tier-0 accounts logon to lower-tier hosts (Deny log on locally / through RDS / as a batch job / as a service), or use Authentication Policy Silos.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1078.002"],"mitigations":["M1026"]},{"id":"control_SvcAcc","name":"Service accounts interactive logon","category":"Machine Hardening - Operation system","scope":"","status":"Manual","severity":"High","finding":"Manual review: Deny service accounts interactive and RDP logon; prefer gMSA/dMSA.","evidence":"","comments":"","relatedFile":"Security-Policy.inf, Services","remediation":"Deny service accounts interactive and RDP logon; prefer gMSA/dMSA.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1078.002"],"mitigations":["M1026","M1018"]},{"id":"control_LocalAndDomainPassPol","name":"Local and domain password policies","category":"Machine Hardening - Authentication","scope":"","status":"Manual","severity":"Medium","finding":"Manual review: Minimum 14 characters, lockout threshold, banned-password list (Entra Password Protection) per organizational policy.","evidence":"","comments":"","relatedFile":"AccountPolicy","remediation":"Minimum 14 characters, lockout threshold, banned-password list (Entra Password Protection) per organizational policy.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1110"],"mitigations":["M1027"]},{"id":"control_SharePerm","name":"Overly permissive shares","category":"Machine Hardening - Operation system","scope":"","status":"Manual","severity":"Medium","finding":"Manual review: Remove Everyone/Authenticated Users write access from share and NTFS ACLs; review the Shares output.","evidence":"","comments":"","relatedFile":"Shares","remediation":"Remove Everyone/Authenticated Users write access from share and NTFS ACLs; review the Shares output.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1039","T1135"],"mitigations":["M1028"]},{"id":"control_ClearPass","name":"No clear-text passwords in files","category":"Machine Hardening - Authentication","scope":"","status":"Manual","severity":"High","finding":"Manual review: Run with -EnableSensitiveInfoSearch to automate this control.","evidence":"","comments":"","relatedFile":"Sensitive-Info","remediation":"Run with -EnableSensitiveInfoSearch to automate this control.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1552.001"],"mitigations":["M1022","M1047"]},{"id":"control_NumOfUsersAndGroups","name":"Local administrator group membership","category":"Machine Hardening - Users","scope":"","status":"Manual","severity":"Medium","finding":"Manual review: Keep local Administrators to the built-in account (LAPS managed) plus one scoped admin group.","evidence":"","comments":"","relatedFile":"Local-Users","remediation":"Keep local Administrators to the built-in account (LAPS managed) plus one scoped admin group.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1078.003"],"mitigations":["M1026"]},{"id":"control_UserRights","name":"User Rights Assignment","category":"Machine Hardening - Users","scope":"","status":"Manual","severity":"High","finding":"Manual review: Ensure SeImpersonate/SeAssignPrimaryToken/SeDebug/SeBackup/SeRestore/SeTakeOwnership/SeLoadDriver/SeTcb/SeCreateToken are not granted to non-admins (Security-Policy.inf).","evidence":"","comments":"","relatedFile":"Security-Policy.inf","remediation":"Ensure SeImpersonate/SeAssignPrimaryToken/SeDebug/SeBackup/SeRestore/SeTakeOwnership/SeLoadDriver/SeTcb/SeCreateToken are not granted to non-admins (Security-Policy.inf).","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1134.001"],"mitigations":["M1026"]},{"id":"control_SvcPer","name":"Service privileges","category":"Machine Hardening - Operation system","scope":"","status":"Manual","severity":"Medium","finding":"Manual review: Run services as virtual accounts / LocalService / gMSA; avoid LocalSystem and domain admin service accounts.","evidence":"","comments":"","relatedFile":"Services","remediation":"Run services as virtual accounts / LocalService / gMSA; avoid LocalSystem and domain admin service accounts.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1543.003"],"mitigations":["M1018"]},{"id":"control_MalProcSrvSoft","name":"Unwanted processes, services and software","category":"Machine Hardening - Operation system","scope":"","status":"Manual","severity":"High","finding":"Manual review: Review Services, Process-list, Software and Netstat outputs for unapproved RMM/remote-access and unknown software.","evidence":"","comments":"","relatedFile":"Services, Process-list, Software, Netstat","remediation":"Review Services, Process-list, Software and Netstat outputs for unapproved RMM/remote-access and unknown software.","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1219"],"mitigations":["M1038","M1042"]},{"id":"control_EventLog","name":"Event log forwarding to SIEM","category":"Machine Hardening - Audit","scope":"","status":"Manual","severity":"Low","finding":"Manual review: Forward Security, System, PowerShell and Sysmon logs to the SIEM (e.g., Microsoft Sentinel via AMA/DCR).","evidence":"","comments":"","relatedFile":"Audit-Policy","remediation":"Forward Security, System, PowerShell and Sysmon logs to the SIEM (e.g., Microsoft Sentinel via AMA/DCR).","reference":"","coverage":"Detect","priority":0.0,"techniques":["T1685.005"],"mitigations":["M1029"]},{"id":"control_HostFW","name":"Host firewall inbound rules","category":"Machine Hardening - Network Access","scope":"","status":"Manual","severity":"High","finding":"Manual review: Review Windows-Firewall-Rules CSV: inbound allow rules should be scoped to management subnets (host isolation).","evidence":"","comments":"","relatedFile":"Windows-Firewall, Windows-Firewall-Rules","remediation":"Review Windows-Firewall-Rules CSV: inbound allow rules should be scoped to management subnets (host isolation).","reference":"","coverage":"Prevent","priority":0.0,"techniques":["T1021"],"mitigations":["M1035"]}],"errors":[],"timings":[{"Function":"Get-WAProcesses","Seconds":0.16},{"Function":"Test-WAProxyConfiguration","Seconds":0.07},{"Function":"Get-WAWhoAmI","Seconds":0.06},{"Function":"Test-WAAntiVirus","Seconds":0.04},{"Function":"Test-WAOfficeHardening","Seconds":0.03},{"Function":"Test-WANetSessionEnum","Seconds":0.03},{"Function":"Test-WAWindowsUpdate","Seconds":0.03},{"Function":"Test-WAUnquotedServicePath","Seconds":0.03},{"Function":"Get-WASharedFolders","Seconds":0.03},{"Function":"Test-WAInternetAccess","Seconds":0.02},{"Function":"Test-WACredSSP","Seconds":0.02},{"Function":"Get-WAHotfixes","Seconds":0.02}]}</script>
+<script>
+(function () {
+  'use strict';
+  var D = JSON.parse(document.getElementById('wa-data').textContent);
+  var F = D.findings || [];
+  var SEV = ['Critical', 'High', 'Medium', 'Low', 'Informational'];
+  var STAT = ['Fail', 'Warning', 'Manual', 'Pass', 'Info', 'NotApplicable', 'Error'];
+  var STAT_LABEL = { Fail: 'Fail', Warning: 'Warning', Manual: 'Manual', Pass: 'Pass', Info: 'Info', NotApplicable: 'N/A', Error: 'Error' };
+  var STAT_VAR = { Fail: '--fail', Warning: '--warn', Manual: '--manual', Pass: '--pass', Info: '--info', NotApplicable: '--na', Error: '--error' };
+  var SEV_VAR = { Critical: '--crit', High: '--high', Medium: '--med', Low: '--low', Informational: '--inf' };
+  var tacticByKey = {};
+  (D.tactics || []).forEach(function (t) { tacticByKey[t.key] = t; });
+
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'text') e.textContent = attrs[k];
+      else if (k === 'cls') e.className = attrs[k];
+      else if (k === 'style') e.setAttribute('style', attrs[k]);
+      else if (k.indexOf('on') === 0) e.addEventListener(k.slice(2), attrs[k]);
+      else e.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c != null) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); return n; }
+  function cssVar(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+  function techUrl(id) { return 'https://attack.mitre.org/techniques/' + id.replace('.', '/') + '/'; }
+  function mitUrl(id) { return 'https://attack.mitre.org/mitigations/' + id + '/'; }
+  function techChip(id) {
+    var t = D.techniques[id] || {};
+    return el('a', { cls: 'tchip', href: techUrl(id), target: '_blank', rel: 'noopener', title: id + ' ' + (t.name || ''), text: id });
+  }
+  function pill(s) { return el('span', { cls: 'pill st-' + s, text: STAT_LABEL[s] || s }); }
+  function sev(s) { return el('span', { cls: 'sv sv-' + s, text: s }); }
+  function count(arr, fn) { return arr.filter(fn).length; }
+
+  /* ---------- header + overview ---------- */
+  var M = D.meta;
+  document.getElementById('h-host').textContent = M.host;
+  var chips = document.getElementById('meta-chips');
+  [['Host', M.host], ['Domain', M.domain], ['Role', M.role], ['OS', M.os + ' (' + M.osVersion + ')'], ['Elevated', M.isAdmin ? 'Yes' : 'No'],
+   ['Generated', (M.generated || '').replace('T', ' ')], ['ATT&CK', M.attackVersion]].forEach(function (p) {
+    chips.appendChild(el('span', { cls: 'chip' }, [p[0] + ': ', el('b', { text: String(p[1]) })]));
+  });
+
+  function ring(score, grade) {
+    var r = 64, c = 2 * Math.PI * r, col = score >= 80 ? '--pass' : score >= 60 ? '--warn' : '--fail';
+    var ns = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 160 160'); svg.setAttribute('width', '170'); svg.setAttribute('height', '170');
+    svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Security score ' + score + ' of 100, grade ' + grade);
+    function circ(stroke, dash) {
+      var ci = document.createElementNS(ns, 'circle');
+      ci.setAttribute('cx', 80); ci.setAttribute('cy', 80); ci.setAttribute('r', r); ci.setAttribute('fill', 'none');
+      ci.setAttribute('stroke', stroke); ci.setAttribute('stroke-width', 14);
+      if (dash != null) { ci.setAttribute('stroke-dasharray', dash + ' ' + c); ci.setAttribute('transform', 'rotate(-90 80 80)'); ci.setAttribute('stroke-linecap', 'round'); }
+      return ci;
+    }
+    svg.appendChild(circ(cssVar('--surface-2'), null));
+    svg.appendChild(circ(cssVar(col), c * score / 100));
+    var t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', 80); t.setAttribute('y', 88); t.setAttribute('text-anchor', 'middle');
+    t.setAttribute('font-size', 38); t.setAttribute('font-weight', 600); t.setAttribute('fill', cssVar('--text'));
+    t.textContent = score; svg.appendChild(t);
+    return svg;
+  }
+  function renderScore() {
+    var sc = clear(document.getElementById('score-card'));
+    sc.appendChild(el('div', { cls: 'kpi-l muted', text: 'Security score', style: 'font-size:12px;text-transform:uppercase;letter-spacing:.04em' }));
+    sc.appendChild(ring(M.score, M.grade));
+    sc.appendChild(el('div', { cls: 'grade', text: 'Grade ' + M.grade + ' \u00b7 weighted by severity' }));
+  }
+  renderScore();
+
+  var techFail = {};
+  F.forEach(function (f) { if (f.status === 'Fail') f.techniques.forEach(function (t) { techFail[t] = true; }); });
+  var kpis = document.getElementById('kpis');
+  var fbs = M.failBySeverity || {};
+  [['Failed', M.counts.Fail, (fbs.Critical || 0) + ' critical \u00b7 ' + (fbs.High || 0) + ' high', '--fail'],
+   ['Warnings', M.counts.Warning, 'partial or weak configuration', '--warn'],
+   ['Passed', M.counts.Pass, 'controls in place', '--pass'],
+   ['Manual review', M.counts.Manual, 'analyst validation needed', '--manual'],
+   ['Techniques exposed', Object.keys(techFail).length, 'of ' + Object.keys(D.techniques).length + ' mapped ATT&CK techniques', '--high']
+  ].forEach(function (k) {
+    kpis.appendChild(el('div', { cls: 'kpi', style: 'border-top:3px solid var(' + k[3] + ')' }, [
+      el('div', { cls: 'l', text: k[0] }), el('div', { cls: 'v', text: String(k[1]) }), el('div', { cls: 's', text: k[2] })]));
+  });
+  var sum = document.getElementById('summary');
+  (D.summary || []).forEach(function (p) { sum.appendChild(el('p', { text: p })); });
+
+  function donut(target) {
+    var ns = 'http://www.w3.org/2000/svg', r = 52, c = 2 * Math.PI * r, off = 0;
+    var svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', '0 0 140 140'); svg.setAttribute('width', '150'); svg.setAttribute('height', '150');
+    var tot = F.length || 1, lg = el('div', { cls: 'legend' });
+    var parts = STAT.map(function (s) { return [s, count(F, function (f) { return f.status === s; })]; }).filter(function (p) { return p[1] > 0; });
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', parts.map(function (p) { return STAT_LABEL[p[0]] + ' ' + p[1]; }).join(', '));
+    parts.forEach(function (p) {
+      var len = c * p[1] / tot;
+      var ci = document.createElementNS(ns, 'circle');
+      ci.setAttribute('cx', 70); ci.setAttribute('cy', 70); ci.setAttribute('r', r); ci.setAttribute('fill', 'none');
+      ci.setAttribute('stroke', cssVar(STAT_VAR[p[0]])); ci.setAttribute('stroke-width', 20);
+      ci.setAttribute('stroke-dasharray', Math.max(len - 1.5, 0.5) + ' ' + c);
+      ci.setAttribute('stroke-dashoffset', -off); ci.setAttribute('transform', 'rotate(-90 70 70)');
+      var ti = document.createElementNS(ns, 'title'); ti.textContent = STAT_LABEL[p[0]] + ': ' + p[1]; ci.appendChild(ti);
+      svg.appendChild(ci); off += len;
+      lg.appendChild(el('span', {}, [el('i', { style: 'background:var(' + STAT_VAR[p[0]] + ')' }), STAT_LABEL[p[0]] + ' ' + p[1]]));
+    });
+    var t = document.createElementNS(ns, 'text');
+    t.setAttribute('x', 70); t.setAttribute('y', 76); t.setAttribute('text-anchor', 'middle'); t.setAttribute('font-size', 22);
+    t.setAttribute('font-weight', 600); t.setAttribute('fill', cssVar('--text')); t.textContent = F.length; svg.appendChild(t);
+    var t2 = document.createElementNS(ns, 'text'); t2.setAttribute('x', 70); t2.setAttribute('y', 94); t2.setAttribute('text-anchor', 'middle'); t2.setAttribute('font-size', 10);
+    t2.setAttribute('fill', cssVar('--muted')); t2.textContent = 'results'; svg.appendChild(t2);
+    clear(target).appendChild(el('div', { style: 'display:flex;gap:16px;align-items:center;flex-wrap:wrap' }, [svg, lg]));
+  }
+  donut(document.getElementById('donut'));
+
+  function barRow(label, segs, total, max, onclick) {
+    var track = el('div', { cls: 'track' });
+    segs.forEach(function (s) { if (s[0] > 0) track.appendChild(el('div', { cls: 'seg', title: s[2] + ': ' + s[0], style: 'width:' + (100 * s[0] / (max || 1)) + '%;background:var(' + s[1] + ')' })); });
+    var lab = onclick ? el('a', { href: '#findings', onclick: onclick, text: label }) : el('span', { text: label });
+    return el('div', { cls: 'row' }, [lab, track, el('span', { cls: 'n', text: String(total) })]);
+  }
+  var sevBars = document.getElementById('sev-bars');
+  var maxSev = Math.max.apply(null, SEV.map(function (s) { return fbs[s] || 0; }).concat([1]));
+  SEV.forEach(function (s) {
+    sevBars.appendChild(barRow(s, [[fbs[s] || 0, SEV_VAR[s], s]], fbs[s] || 0, maxSev, function () { setFilter({ severity: s, statuses: ['Fail'] }); }));
+  });
+  var cats = {};
+  F.forEach(function (f) { (cats[f.category] = cats[f.category] || []).push(f); });
+  var catNames = Object.keys(cats).filter(function (c) { return c !== 'Information'; }).sort(function (a, b) {
+    return count(cats[b], function (f) { return f.status === 'Fail'; }) - count(cats[a], function (f) { return f.status === 'Fail'; }) || a.localeCompare(b);
+  });
+  var maxCat = Math.max.apply(null, catNames.map(function (c) { return cats[c].length; }).concat([1]));
+  var catBars = document.getElementById('cat-bars');
+  catNames.forEach(function (c) {
+    var l = cats[c];
+    catBars.appendChild(barRow(c.replace('Machine Hardening - ', '').replace('Domain Hardening - ', 'Domain: '), [
+      [count(l, function (f) { return f.status === 'Fail'; }), '--fail', 'Fail'], [count(l, function (f) { return f.status === 'Warning'; }), '--warn', 'Warning'],
+      [count(l, function (f) { return f.status === 'Manual'; }), '--manual', 'Manual'], [count(l, function (f) { return f.status === 'Pass'; }), '--pass', 'Pass'],
+      [count(l, function (f) { return ['Info', 'NotApplicable', 'Error'].indexOf(f.status) >= 0; }), '--na', 'Other']
+    ], l.length, maxCat, function () { setFilter({ category: c }); }));
+  });
+  ['Fail', 'Warning', 'Manual', 'Pass'].forEach(function (s) { document.getElementById('cat-legend').appendChild(el('span', {}, [el('i', { style: 'background:var(' + STAT_VAR[s] + ')' }), STAT_LABEL[s]])); });
+  document.getElementById('cat-legend').appendChild(el('span', {}, [el('i', { style: 'background:var(--na)' }), 'Info / N/A']));
+
+  /* ---------- attack paths ---------- */
+  var pc = document.getElementById('path-cards');
+  if (!(D.attackPaths || []).length) pc.appendChild(el('div', { cls: 'empty', text: 'No attack paths identified - no chained weaknesses among failing controls.' }));
+  (D.attackPaths || []).forEach(function (p) {
+    var names = p.checks.map(function (id) { var f = F.filter(function (x) { return x.id === id; })[0]; return f ? f.name : id; });
+    pc.appendChild(el('div', { cls: 'card path', style: '--c:var(' + SEV_VAR[p.severity] + ')' }, [
+      el('div', { style: 'display:flex;justify-content:space-between;gap:8px;align-items:baseline' }, [el('h3', { text: p.title }), sev(p.severity)]),
+      el('p', { text: p.narrative }),
+      el('div', {}, p.techniques.filter(function (t) { return D.techniques[t]; }).map(techChip)),
+      el('div', { cls: 'checks', text: 'Contributing controls: ' + names.join(', ') })
+    ]));
+  });
+
+  /* ---------- ATT&CK matrix ---------- */
+  var RANK = { crit: 0, high: 1, med: 2, low: 3, warn: 4, manual: 5, pass: 6, na: 7 };
+  function techState(tid) {
+    var fs = F.filter(function (f) { return f.techniques.indexOf(tid) >= 0; });
+    var best = 'na', fails = 0;
+    fs.forEach(function (f) {
+      var k = 'na';
+      if (f.status === 'Fail') { fails++; k = { Critical: 'crit', High: 'high', Medium: 'med', Low: 'low', Informational: 'low' }[f.severity]; }
+      else if (f.status === 'Warning') k = 'warn';
+      else if (f.status === 'Manual' || f.status === 'Error') k = 'manual';
+      else if (f.status === 'Pass') k = 'pass';
+      if (RANK[k] < RANK[best]) best = k;
+    });
+    return { cls: best, fails: fails, findings: fs };
+  }
+  document.getElementById('attack-caption').textContent = 'Each cell is an ATT&CK technique mapped to at least one control, coloured by the worst result of its controls. ' +
+    'Source: ' + M.attackVersion + ' (' + M.attackModified + '). Click a technique for details.';
+  var matrix = document.getElementById('matrix');
+  var tacCols = {};
+  Object.keys(D.techniques).forEach(function (tid) { D.techniques[tid].tactics.forEach(function (k) { (tacCols[k] = tacCols[k] || []).push(tid); }); });
+  Object.keys(tacCols).sort(function (a, b) { return (tacticByKey[a] || {}).order - (tacticByKey[b] || {}).order; }).forEach(function (k) {
+    var t = tacticByKey[k] || { name: k, id: '' };
+    var col = el('div', { cls: 'tactic' }, [el('div', { cls: 'th' }, [t.name, el('small', { text: t.id + ' \u00b7 ' + tacCols[k].length + ' techniques' })])]);
+    tacCols[k].map(function (tid) { return [tid, techState(tid)]; })
+      .sort(function (a, b) { return RANK[a[1].cls] - RANK[b[1].cls] || a[0].localeCompare(b[0]); })
+      .forEach(function (x) {
+        var tid = x[0], st = x[1];
+        col.appendChild(el('button', { type: 'button', cls: 'cell c-' + st.cls, 'data-tid': tid, 'aria-label': tid + ' ' + D.techniques[tid].name + ', ' + st.fails + ' failing controls', onclick: function () { showTech(tid); } }, [
+          el('span', { cls: 'tid' }, [tid, st.fails ? el('b', { text: st.fails + ' fail', style: 'color:var(--fail)' }) : null]),
+          el('span', { text: D.techniques[tid].name })]));
+      });
+    matrix.appendChild(col);
+  });
+  [['crit', 'Fail - critical'], ['high', 'Fail - high'], ['med', 'Fail - medium'], ['low', 'Fail - low'], ['warn', 'Warning'], ['manual', 'Manual'], ['pass', 'Pass'], ['na', 'N/A / info']].forEach(function (l) {
+    document.getElementById('matrix-legend').appendChild(el('span', {}, [el('i', { cls: 'c-' + l[0], style: 'background:var(--c)' }), l[1]]));
+  });
+  function showTech(tid) {
+    Array.prototype.forEach.call(document.querySelectorAll('.cell'), function (c) { c.classList.toggle('sel', c.getAttribute('data-tid') === tid); });
+    var p = clear(document.getElementById('matrix-detail')); p.hidden = false;
+    var t = D.techniques[tid], st = techState(tid);
+    p.appendChild(el('div', { style: 'display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline' }, [
+      el('h3', {}, [el('a', { href: techUrl(tid), target: '_blank', rel: 'noopener', text: tid + ' ' + t.name })]),
+      el('span', { cls: 'muted', text: t.tactics.map(function (k) { return (tacticByKey[k] || {}).name || k; }).join(', ') })]));
+    var tb = el('tbody');
+    st.findings.forEach(function (f) { tb.appendChild(el('tr', {}, [el('td', {}, [pill(f.status)]), el('td', {}, [sev(f.severity)]), el('td', { text: f.name + (f.scope ? ' (' + f.scope + ')' : '') }), el('td', { text: f.finding || '' })])); });
+    p.appendChild(el('div', { cls: 'table-wrap' }, [el('table', {}, [tb])]));
+    p.appendChild(el('div', { style: 'margin-top:8px' }, [el('button', { type: 'button', text: 'Show these controls in Findings', onclick: function () { setFilter({ technique: tid }); location.hash = '#findings'; } })]));
+  }
+
+  /* ---------- findings table ---------- */
+  var state = { q: '', statuses: STAT.slice(), severity: '', category: '', tactic: '', technique: '', sort: 'priority', dir: -1 };
+  var st = document.getElementById('status-toggles');
+  STAT.forEach(function (s) {
+    if (!count(F, function (f) { return f.status === s; })) return;
+    st.appendChild(el('button', { type: 'button', cls: 'toggle pill st-' + s, 'aria-pressed': 'true', 'data-s': s, text: STAT_LABEL[s] + ' ' + count(F, function (f) { return f.status === s; }),
+      onclick: function (e) { var s2 = e.currentTarget.getAttribute('data-s'); var i = state.statuses.indexOf(s2); if (i >= 0) state.statuses.splice(i, 1); else state.statuses.push(s2); renderTable(); } }));
+    st.appendChild(document.createTextNode(' '));
+  });
+  function fillSelect(id, values) { var s = document.getElementById(id); values.forEach(function (v) { s.appendChild(el('option', { value: v[0], text: v[1] })); }); }
+  fillSelect('f-sev', SEV.map(function (s) { return [s, s]; }));
+  fillSelect('f-cat', Object.keys(cats).sort().map(function (c) { return [c, c]; }));
+  fillSelect('f-tac', Object.keys(tacCols).sort(function (a, b) { return tacticByKey[a].order - tacticByKey[b].order; }).map(function (k) { return [k, tacticByKey[k].name]; }));
+  function bind(id, key) { document.getElementById(id).addEventListener('change', function (e) { state[key] = e.target.value; renderTable(); }); }
+  bind('f-sev', 'severity'); bind('f-cat', 'category'); bind('f-tac', 'tactic');
+  document.getElementById('q').addEventListener('input', function (e) { state.q = e.target.value.toLowerCase(); renderTable(); });
+  document.getElementById('f-tech').addEventListener('click', function () { state.technique = ''; renderTable(); });
+  document.getElementById('btn-reset').addEventListener('click', function () { setFilter({}); });
+  function setFilter(o) {
+    state.q = ''; state.severity = o.severity || ''; state.category = o.category || ''; state.tactic = o.tactic || ''; state.technique = o.technique || '';
+    state.statuses = o.statuses ? o.statuses.slice() : STAT.slice();
+    document.getElementById('q').value = ''; document.getElementById('f-sev').value = state.severity;
+    document.getElementById('f-cat').value = state.category; document.getElementById('f-tac').value = state.tactic;
+    renderTable();
+  }
+  function matches(f) {
+    if (state.statuses.indexOf(f.status) < 0) return false;
+    if (state.severity && f.severity !== state.severity) return false;
+    if (state.category && f.category !== state.category) return false;
+    if (state.technique && f.techniques.indexOf(state.technique) < 0) return false;
+    if (state.tactic && !f.techniques.some(function (t) { return D.techniques[t].tactics.indexOf(state.tactic) >= 0; })) return false;
+    if (state.q) {
+      var hay = [f.id, f.name, f.category, f.scope, f.finding, f.evidence, f.comments, f.remediation, f.techniques.join(' '), f.mitigations.join(' '),
+        f.techniques.map(function (t) { return D.techniques[t].name; }).join(' ')].join(' ').toLowerCase();
+      if (hay.indexOf(state.q) < 0) return false;
+    }
+    return true;
+  }
+  var SEVRANK = { Critical: 0, High: 1, Medium: 2, Low: 3, Informational: 4 };
+  var STATRANK = { Fail: 0, Warning: 1, Error: 2, Manual: 3, Pass: 4, Info: 5, NotApplicable: 6 };
+  function cmp(a, b) {
+    var k = state.sort, d = state.dir, va, vb;
+    if (k === 'severity') { va = SEVRANK[a.severity]; vb = SEVRANK[b.severity]; d = -d; }
+    else if (k === 'status') { va = STATRANK[a.status]; vb = STATRANK[b.status]; d = -d; }
+    else if (k === 'priority') { va = a.priority; vb = b.priority; }
+    else if (k === 'techniques') { va = a.techniques.length; vb = b.techniques.length; }
+    else { va = String(a[k] || '').toLowerCase(); vb = String(b[k] || '').toLowerCase(); }
+    if (va < vb) return -1 * d; if (va > vb) return 1 * d;
+    return (STATRANK[a.status] - STATRANK[b.status]) || (SEVRANK[a.severity] - SEVRANK[b.severity]) || a.name.localeCompare(b.name);
+  }
+  Array.prototype.forEach.call(document.querySelectorAll('#tbl th'), function (th) {
+    th.tabIndex = 0;
+    function go() { var k = th.getAttribute('data-k'); if (state.sort === k) state.dir = -state.dir; else { state.sort = k; state.dir = (k === 'name' || k === 'category') ? 1 : -1; } renderTable(); }
+    th.addEventListener('click', go); th.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+  function detailRow(f) {
+    function kv(k, v) { return v ? [el('div', { cls: 'k', text: k }), v] : []; }
+    var items = [].concat(
+      kv('Finding', f.finding ? el('div', { text: f.finding }) : null),
+      kv('Evidence', f.evidence ? el('pre', { text: f.evidence }) : null),
+      kv('Comments', f.comments ? el('div', { text: f.comments }) : null),
+      kv('Remediation', f.remediation ? el('div', { text: f.remediation }) : null),
+      kv('Reference', f.reference ? el('a', { href: f.reference, target: '_blank', rel: 'noopener', text: f.reference }) : null),
+      kv('Techniques', f.techniques.length ? el('div', {}, f.techniques.map(function (t) { return el('div', {}, [techChip(t), ' ' + D.techniques[t].name + ' \u2014 ' + D.techniques[t].tactics.map(function (k) { return tacticByKey[k].name; }).join(', ')]); })) : null),
+      kv('Mitigations', f.mitigations.length ? el('div', {}, f.mitigations.map(function (m) { return el('div', {}, [el('a', { cls: 'tchip', href: mitUrl(m), target: '_blank', rel: 'noopener', text: m }), ' ' + (D.mitigations[m] || '')]); })) : (f.coverage === 'Detect' ? el('div', { cls: 'muted', text: 'Detective control (visibility) - no preventive ATT&CK mitigation.' }) : null)),
+      kv('Coverage', f.coverage ? el('div', { text: f.coverage }) : null),
+      kv('Evidence file', f.relatedFile ? el('div', { text: f.relatedFile }) : null),
+      kv('Check ID', el('div', { cls: 'cid', text: f.id }))
+    );
+    return el('tr', { cls: 'det' }, [el('td', { colspan: '6' }, [el('div', { cls: 'kv' }, items)])]);
+  }
+  var open = {};
+  function renderTable() {
+    var rows = F.filter(matches).sort(cmp), tb = clear(document.getElementById('tbody'));
+    Array.prototype.forEach.call(document.querySelectorAll('#tbl th'), function (th) {
+      th.setAttribute('aria-sort', th.getAttribute('data-k') === state.sort ? (state.dir > 0 ? 'ascending' : 'descending') : 'none');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#status-toggles button'), function (b) { b.setAttribute('aria-pressed', state.statuses.indexOf(b.getAttribute('data-s')) >= 0 ? 'true' : 'false'); });
+    var ft = document.getElementById('f-tech');
+    ft.hidden = !state.technique; ft.textContent = state.technique ? 'Technique ' + state.technique + ' \u00d7' : '';
+    rows.forEach(function (f) {
+      var key = f.id + '|' + f.scope;
+      var tr = el('tr', { cls: 'row', tabindex: '0', 'aria-expanded': open[key] ? 'true' : 'false' }, [
+        el('td', {}, [sev(f.severity)]), el('td', {}, [pill(f.status)]),
+        el('td', {}, [el('div', { text: f.name + (f.scope ? ' (' + f.scope + ')' : '') }), el('div', { cls: 'muted', style: 'font-size:12.5px', text: f.finding || '' })]),
+        el('td', { cls: 'muted', text: f.category }),
+        el('td', {}, f.techniques.map(techChip)),
+        el('td', { cls: 'muted', style: 'font-variant-numeric:tabular-nums', text: f.priority ? String(f.priority) : '' })
+      ]);
+      function toggle(e) { if (e.target.closest('a')) return; open[key] = !open[key]; renderTable(); }
+      tr.addEventListener('click', toggle);
+      tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(e); } });
+      tb.appendChild(tr);
+      if (open[key]) tb.appendChild(detailRow(f));
+    });
+    if (!rows.length) tb.appendChild(el('tr', {}, [el('td', { colspan: '6', cls: 'empty', text: 'No findings match the current filters.' })]));
+    document.getElementById('f-count').textContent = rows.length + ' of ' + F.length + ' results';
+  }
+  renderTable();
+
+  function toCsv(rows) {
+    var cols = ['id', 'name', 'scope', 'category', 'status', 'severity', 'priority', 'finding', 'evidence', 'remediation', 'techniques', 'mitigations', 'relatedFile'];
+    function q(v) { v = Array.isArray(v) ? v.join(';') : (v == null ? '' : String(v)); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; }
+    return '\ufeff' + cols.join(',') + '\r\n' + rows.map(function (r) { return cols.map(function (c) { return q(r[c]); }).join(','); }).join('\r\n');
+  }
+  document.getElementById('btn-csv').addEventListener('click', function () {
+    var blob = new Blob([toCsv(F.filter(matches).sort(cmp))], { type: 'text/csv;charset=utf-8' });
+    var a = el('a', { href: URL.createObjectURL(blob), download: 'findings_' + M.host + '.csv' });
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  });
+
+  /* ---------- remediation plan ---------- */
+  var actionable = F.filter(function (f) { return (f.status === 'Fail' || f.status === 'Warning') && f.remediation; }).sort(function (a, b) { return b.priority - a.priority; });
+  var buckets = [
+    ['Now', 'Critical and high severity failures', function (f) { return f.status === 'Fail' && (f.severity === 'Critical' || f.severity === 'High'); }],
+    ['Next', 'Medium failures and high-severity warnings', function (f) { return (f.status === 'Fail' && f.severity === 'Medium') || (f.status === 'Warning' && (f.severity === 'Critical' || f.severity === 'High')); }],
+    ['Later', 'Low severity and remaining warnings', function () { return true; }]
+  ];
+  var used = {}, planCols = document.getElementById('plan-cols');
+  buckets.forEach(function (b) {
+    var items = actionable.filter(function (f) { var k = f.id + '|' + f.scope; if (used[k] || !b[2](f)) return false; used[k] = true; return true; });
+    var ol = el('ol');
+    items.forEach(function (f) {
+      ol.appendChild(el('li', {}, [el('div', {}, [sev(f.severity), ' ', el('b', { text: f.name + (f.scope ? ' (' + f.scope + ')' : '') }), ' ', pill(f.status)]),
+        el('div', { cls: 'r', text: f.remediation }), el('div', {}, f.techniques.map(techChip))]));
+    });
+    planCols.appendChild(el('div', { cls: 'card' }, [el('h3', { text: b[0] + ' (' + items.length + ')' }), el('div', { cls: 'muted', style: 'margin:-4px 0 10px;font-size:12px', text: b[1] }),
+      items.length ? ol : el('div', { cls: 'empty', text: 'Nothing in this bucket.' })]));
+  });
+
+  /* ---------- mitigation coverage ---------- */
+  var mit = {};
+  F.forEach(function (f) { f.mitigations.forEach(function (m) { (mit[m] = mit[m] || []).push(f); }); });
+  var mids = Object.keys(mit).sort(function (a, b) { return count(mit[b], function (f) { return f.status === 'Fail'; }) - count(mit[a], function (f) { return f.status === 'Fail'; }) || a.localeCompare(b); });
+  var maxM = Math.max.apply(null, mids.map(function (m) { return mit[m].length; }).concat([1]));
+  mids.forEach(function (m) {
+    var l = mit[m];
+    document.getElementById('mit-bars').appendChild(barRow(m + ' ' + (D.mitigations[m] || ''), [
+      [count(l, function (f) { return f.status === 'Fail'; }), '--fail', 'Fail'], [count(l, function (f) { return f.status === 'Warning'; }), '--warn', 'Warning'],
+      [count(l, function (f) { return f.status === 'Manual'; }), '--manual', 'Manual'], [count(l, function (f) { return f.status === 'Pass'; }), '--pass', 'Pass'],
+      [count(l, function (f) { return ['Info', 'NotApplicable', 'Error'].indexOf(f.status) >= 0; }), '--na', 'Other']], l.length, maxM));
+  });
+  ['Fail', 'Warning', 'Manual', 'Pass'].forEach(function (s) { document.getElementById('mit-legend').appendChild(el('span', {}, [el('i', { style: 'background:var(' + STAT_VAR[s] + ')' }), STAT_LABEL[s]])); });
+
+  /* ---------- run details ---------- */
+  var kv = document.getElementById('run-kv');
+  [['Script version', M.scriptVersion], ['PowerShell', M.psVersion], ['Run as', M.user + (M.isAdmin ? ' (elevated)' : ' (not elevated)')],
+   ['Started', (M.started || '').replace('T', ' ')], ['Duration', M.durationSec + ' s'], ['Last boot', (M.lastBoot || '').replace('T', ' ')],
+   ['Options', 'Sensitive search: ' + (M.options.sensitiveSearch ? 'on' : 'off') + '; network tests: ' + (M.options.skipNetworkTests ? 'skipped' : 'on') + '; GPO collection: ' + (M.options.skipGpo ? 'skipped' : 'on')],
+   ['ATT&CK data', M.attackVersion + ' (' + M.attackModified + ')']].forEach(function (p) {
+    kv.appendChild(el('div', { cls: 'k', text: p[0] })); kv.appendChild(el('div', { text: String(p[1]) }));
+  });
+  var tm = D.timings || [], maxT = Math.max.apply(null, tm.map(function (t) { return t.Seconds; }).concat([1]));
+  tm.forEach(function (t) { document.getElementById('timings').appendChild(barRow(t.Function, [[t.Seconds, '--accent', 'Seconds']], t.Seconds + 's', maxT)); });
+  var er = document.getElementById('errors');
+  if (!(D.errors || []).length) er.appendChild(el('div', { cls: 'empty', text: 'No execution errors.' }));
+  (D.errors || []).forEach(function (e) { er.appendChild(el('div', { style: 'margin-bottom:6px' }, [el('b', { text: e.Function }), el('span', { cls: 'muted', text: ' (line ' + e.Line + '): ' }), e.Message])); });
+  document.getElementById('footer').appendChild(el('div', { text: 'Generated by WindowsAssessment.ps1 v' + M.scriptVersion + ' on ' + (M.generated || '').replace('T', ' ') +
+    '. This report contains sensitive configuration data - handle as CONFIDENTIAL. MITRE ATT&CK\u00ae content \u00a9 The MITRE Corporation, reproduced and distributed with the permission of The MITRE Corporation.' }));
+
+  /* ---------- theme / print ---------- */
+  var root = document.documentElement;
+  try { var saved = localStorage.getItem('wa-theme'); if (saved) root.setAttribute('data-theme', saved); } catch (e) { /* storage unavailable */ }
+  document.getElementById('btn-theme').addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') ? root.getAttribute('data-theme') === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    root.setAttribute('data-theme', dark ? 'light' : 'dark');
+    try { localStorage.setItem('wa-theme', root.getAttribute('data-theme')); } catch (e) { /* storage unavailable */ }
+    renderScore(); donut(document.getElementById('donut'));
+  });
+  document.getElementById('btn-print').addEventListener('click', function () { window.print(); });
+})();
+</script>
+</body>
+</html>
